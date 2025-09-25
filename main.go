@@ -16,6 +16,10 @@ import (
 
 func main() {
 	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
+	runtimeEndpoint := flag.String("runtime-endpoint", "", "Endpoint of CRI runtime service")
+	imageEndpoint := flag.String("image-endpoint", "", "Endpoint of CRI image service")
+	flag.StringVar(runtimeEndpoint, "r", "", "Endpoint of CRI runtime service (shorthand)")
+	flag.StringVar(imageEndpoint, "i", "", "Endpoint of CRI image service (shorthand)")
 	flag.Parse()
 
 	cfg, err := config.LoadFile(*configFile)
@@ -24,6 +28,17 @@ func main() {
 	}
 
 	log.Printf("Configuration loaded successfully from %s", *configFile)
+
+	// Override config with flags if provided.
+	if *runtimeEndpoint != "" {
+		cfg.RuntimeEndpoint = *runtimeEndpoint
+	}
+	if *imageEndpoint != "" {
+		cfg.ImageEndpoint = *imageEndpoint
+	}
+
+	log.Printf("Using runtime endpoint: %s", cfg.RuntimeEndpoint)
+	log.Printf("Using image endpoint: %s", cfg.ImageEndpoint)
 
 	// Start the fake CRI server.
 	go func() {

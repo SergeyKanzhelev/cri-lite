@@ -31,3 +31,4 @@ config.yaml
 
 # crictl binary
 crictl
+cri-lite.log
