@@ -1,0 +1,79 @@
+// cri-lite is a CRI proxy that enforces policies on CRI API calls.
+package main
+
+import (
+	"flag"
+	"log"
+	"strings"
+
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+
+	"cri-lite/pkg/config"
+	"cri-lite/pkg/fake"
+	"cri-lite/pkg/policy"
+	"cri-lite/pkg/proxy"
+)
+
+func main() {
+	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
+	flag.Parse()
+
+	cfg, err := config.LoadFile(*configFile)
+	if err != nil {
+		log.Fatalf("failed to load configuration: %v", err)
+	}
+
+	log.Printf("Configuration loaded successfully from %s", *configFile)
+
+	// Start the fake CRI server.
+	go func() {
+		log.Println("Starting fake CRI server")
+
+		fakeServer := &fake.Server{
+			UnimplementedRuntimeServiceServer: runtimeapi.UnimplementedRuntimeServiceServer{},
+			UnimplementedImageServiceServer:   runtimeapi.UnimplementedImageServiceServer{},
+		}
+		socketPath := strings.TrimPrefix(cfg.RuntimeEndpoint, "unix://")
+
+		err := fakeServer.Start(socketPath)
+		if err != nil {
+			log.Fatalf("failed to start fake CRI server: %v", err)
+		}
+	}()
+
+	for _, endpoint := range cfg.Endpoints {
+		go func(endpoint config.Endpoint) {
+			log.Printf("Starting server for endpoint: %s", endpoint.Endpoint)
+
+			server, err := proxy.NewServer(cfg.RuntimeEndpoint, cfg.ImageEndpoint)
+			if err != nil {
+				log.Fatalf("failed to create server for endpoint %s: %v", endpoint.Endpoint, err)
+			}
+
+			var policies []policy.Policy
+
+			for _, p := range endpoint.Policies {
+				switch p {
+				case "ReadOnly":
+					policies = append(policies, policy.NewReadOnlyPolicy())
+				case "ImageManagement":
+					policies = append(policies, policy.NewImageManagementPolicy())
+				case "PodScoped":
+					policies = append(policies, policy.NewPodScopedPolicy(endpoint.PodSandboxID, endpoint.PodSandboxFromCallerPID, server.GetRuntimeClient()))
+				default:
+					log.Fatalf("unknown policy: %s", p)
+				}
+			}
+
+			server.SetPolicies(policies)
+
+			err = server.Start(endpoint.Endpoint)
+			if err != nil {
+				log.Fatalf("failed to start server for endpoint %s: %v", endpoint.Endpoint, err)
+			}
+		}(endpoint)
+	}
+
+	// Keep the main goroutine alive.
+	select {}
+}

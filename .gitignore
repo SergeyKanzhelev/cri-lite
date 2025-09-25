@@ -1,0 +1,33 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, generated with go test -c
+*.test
+
+# Output of the go generate command
+*.pb.go
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Build outputs
+bin/
+.bin/
+
+# Dependency directories
+vendor/
+
+# Go module cache
+.cache/
+
+# Local configuration files
+config.yaml
+
+# crictl binary
+crictl
