@@ -22,3 +22,7 @@ When I suggest placing a `TODO` to address something later, I will use the follo
 *   **`HACK:`**: For temporary workarounds or unfinished code that must be fixed before the current set of changes is complete. The linter will flag these to prevent them from being committed.
 
 Also I will use `HACK:` convention when I implement the placeholder code that is intended to be replaced.
+
+## Testing
+
+Some tests require `sudo` to run. never attempt to run tests under the `test/e2e` directly or using `make test-e2e` commands as they will not succeed in AI sandbox. Ask user to run them and post logs back.
