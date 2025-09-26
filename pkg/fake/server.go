@@ -60,12 +60,13 @@ func (s *Server) ListContainers(_ context.Context, req *runtimeapi.ListContainer
 
 	if req.GetFilter() != nil && req.GetFilter().GetId() != "" {
 		for _, c := range containers {
-			if c.Id == req.GetFilter().GetId() {
+			if c.GetId() == req.GetFilter().GetId() {
 				return &runtimeapi.ListContainersResponse{
 					Containers: []*runtimeapi.Container{c},
 				}, nil
 			}
 		}
+
 		return &runtimeapi.ListContainersResponse{}, nil
 	}
 

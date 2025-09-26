@@ -29,6 +29,7 @@ func main() {
 	if *runtimeEndpoint != "" {
 		cfg.RuntimeEndpoint = *runtimeEndpoint
 	}
+
 	if *imageEndpoint != "" {
 		cfg.ImageEndpoint = *imageEndpoint
 	}

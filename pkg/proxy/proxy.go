@@ -26,20 +26,6 @@ type Server struct {
 	policies      []policy.Policy
 }
 
-func (s *Server) GetRuntimeClient() runtimeapi.RuntimeServiceClient {
-	return s.runtimeClient
-}
-
-// GetImageClient returns the underlying image service client.
-func (s *Server) GetImageClient() runtimeapi.ImageServiceClient {
-	return s.imageClient
-}
-
-// SetPolicies sets the list of policies enforced by the server.
-func (s *Server) SetPolicies(policies []policy.Policy) {
-	s.policies = policies
-}
-
 // NewServer creates a new cri-lite proxy server.
 func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 	runtimeConn, err := grpc.NewClient(runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -59,6 +45,21 @@ func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 		imageClient:                       runtimeapi.NewImageServiceClient(imageConn),
 	}, nil
 }
+
+func (s *Server) GetRuntimeClient() runtimeapi.RuntimeServiceClient {
+	return s.runtimeClient
+}
+
+// GetImageClient returns the underlying image service client.
+func (s *Server) GetImageClient() runtimeapi.ImageServiceClient {
+	return s.imageClient
+}
+
+// SetPolicies sets the list of policies enforced by the server.
+func (s *Server) SetPolicies(policies []policy.Policy) {
+	s.policies = policies
+}
+
 
 // Start starts the gRPC server on the specified socket.
 func (s *Server) Start(socketPath string) error {

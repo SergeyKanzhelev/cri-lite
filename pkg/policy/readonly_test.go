@@ -1,8 +1,7 @@
-package proxy_test
+package policy_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -19,14 +18,12 @@ import (
 	"cri-lite/pkg/proxy"
 )
 
-
-
-func TestProxy(t *testing.T) {
+func TestPolicy(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Proxy Suite")
+	RunSpecs(t, "ReadOnly Policy Suite")
 }
 
-var _ = Describe("Proxy", func() {
+var _ = Describe("ReadOnly Policy", func() {
 	var (
 		server        *grpc.Server
 		proxyServer   *proxy.Server
@@ -43,7 +40,7 @@ var _ = Describe("Proxy", func() {
 		Expect(err).NotTo(HaveOccurred())
 		serverSocket = createSocket(sockDir)
 		proxySocket = createSocket(sockDir)
-		serverAddress = fmt.Sprintf("unix://%s", serverSocket)
+		serverAddress = "unix://" + serverSocket
 
 		// Start fake server
 		var lis net.Listener
@@ -73,7 +70,10 @@ var _ = Describe("Proxy", func() {
 			if err != nil {
 				return err
 			}
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				return err
+			}
+
 			return nil
 		}, "5s", "100ms").Should(Succeed())
 
@@ -117,8 +117,10 @@ var _ = Describe("Proxy", func() {
 func createSocket(sockDir string) string {
 	f, err := os.CreateTemp(sockDir, "socket-*.sock")
 	Expect(err).NotTo(HaveOccurred())
+
 	path := f.Name()
 	Expect(f.Close()).To(Succeed())
 	Expect(os.Remove(path)).To(Succeed())
+
 	return path
 }
