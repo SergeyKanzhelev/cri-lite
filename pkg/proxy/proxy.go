@@ -138,6 +138,16 @@ func (s *Server) PodSandboxStatus(ctx context.Context, req *runtimeapi.PodSandbo
 	return resp, nil
 }
 
+// RunPodSandbox proxies the RunPodSandbox call to the underlying runtime service.
+func (s *Server) RunPodSandbox(ctx context.Context, req *runtimeapi.RunPodSandboxRequest) (*runtimeapi.RunPodSandboxResponse, error) {
+	resp, err := s.runtimeClient.RunPodSandbox(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to proxy RunPodSandbox call: %w", err)
+	}
+
+	return resp, nil
+}
+
 // ListImages proxies the ListImages call to the underlying image service.
 func (s *Server) ListImages(ctx context.Context, req *runtimeapi.ListImagesRequest) (*runtimeapi.ListImagesResponse, error) {
 	resp, err := s.imageClient.ListImages(ctx, req)
