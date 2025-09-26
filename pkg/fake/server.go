@@ -122,3 +122,52 @@ func (s *Server) PullImage(_ context.Context, _ *runtimeapi.PullImageRequest) (*
 		ImageRef: "sha256:12345",
 	}, nil
 }
+
+// Status returns a fake status.
+func (s *Server) Status(_ context.Context, _ *runtimeapi.StatusRequest) (*runtimeapi.StatusResponse, error) {
+	return &runtimeapi.StatusResponse{
+		Status: &runtimeapi.RuntimeStatus{
+			Conditions: []*runtimeapi.RuntimeCondition{
+				{
+					Type:   "RuntimeReady",
+					Status: true,
+				},
+			},
+		},
+	}, nil
+}
+
+// ContainerStats returns fake container stats.
+func (s *Server) ContainerStats(_ context.Context, _ *runtimeapi.ContainerStatsRequest) (*runtimeapi.ContainerStatsResponse, error) {
+	return &runtimeapi.ContainerStatsResponse{}, nil
+}
+
+// ListContainerStats returns fake container stats.
+func (s *Server) ListContainerStats(_ context.Context, _ *runtimeapi.ListContainerStatsRequest) (*runtimeapi.ListContainerStatsResponse, error) {
+	return &runtimeapi.ListContainerStatsResponse{}, nil
+}
+
+// PodSandboxStats returns fake pod sandbox stats.
+func (s *Server) PodSandboxStats(_ context.Context, _ *runtimeapi.PodSandboxStatsRequest) (*runtimeapi.PodSandboxStatsResponse, error) {
+	return &runtimeapi.PodSandboxStatsResponse{}, nil
+}
+
+// ListPodSandboxStats returns fake pod sandbox stats.
+func (s *Server) ListPodSandboxStats(_ context.Context, _ *runtimeapi.ListPodSandboxStatsRequest) (*runtimeapi.ListPodSandboxStatsResponse, error) {
+	return &runtimeapi.ListPodSandboxStatsResponse{}, nil
+}
+
+// ListPodSandbox returns a fake list of pod sandboxes.
+func (s *Server) ListPodSandbox(_ context.Context, _ *runtimeapi.ListPodSandboxRequest) (*runtimeapi.ListPodSandboxResponse, error) {
+	return &runtimeapi.ListPodSandboxResponse{}, nil
+}
+
+// PodSandboxStatus returns a fake pod sandbox status.
+func (s *Server) PodSandboxStatus(_ context.Context, _ *runtimeapi.PodSandboxStatusRequest) (*runtimeapi.PodSandboxStatusResponse, error) {
+	return &runtimeapi.PodSandboxStatusResponse{}, nil
+}
+
+// ImageStatus returns a fake image status.
+func (s *Server) ImageStatus(_ context.Context, _ *runtimeapi.ImageStatusRequest) (*runtimeapi.ImageStatusResponse, error) {
+	return &runtimeapi.ImageStatusResponse{}, nil
+}

@@ -29,14 +29,19 @@ func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	) (interface{}, error) {
 		// List of allowed read-only methods.
 		allowedMethods := map[string]bool{
-			"/runtime.v1.RuntimeService/Version":          true,
-			"/runtime.v1.RuntimeService/ListContainers":   true,
-			"/runtime.v1.RuntimeService/ContainerStatus":  true,
-			"/runtime.v1.RuntimeService/ListPodSandbox":   true,
-			"/runtime.v1.RuntimeService/PodSandboxStatus": true,
-			"/runtime.v1.ImageService/ListImages":         true,
-			"/runtime.v1.ImageService/ImageStatus":        true,
-			"/runtime.v1.ImageService/ImageFsInfo":        true,
+			"/runtime.v1.RuntimeService/Version":             true,
+			"/runtime.v1.RuntimeService/Status":              true,
+			"/runtime.v1.RuntimeService/ListContainers":      true,
+			"/runtime.v1.RuntimeService/ContainerStatus":     true,
+			"/runtime.v1.RuntimeService/ListPodSandbox":      true,
+			"/runtime.v1.RuntimeService/PodSandboxStatus":    true,
+			"/runtime.v1.RuntimeService/ContainerStats":      true,
+			"/runtime.v1.RuntimeService/ListContainerStats":  true,
+			"/runtime.v1.RuntimeService/PodSandboxStats":     true,
+			"/runtime.v1.RuntimeService/ListPodSandboxStats": true,
+			"/runtime.v1.ImageService/ListImages":            true,
+			"/runtime.v1.ImageService/ImageStatus":           true,
+			"/runtime.v1.ImageService/ImageFsInfo":           true,
 		}
 
 		if !allowedMethods[info.FullMethod] {
