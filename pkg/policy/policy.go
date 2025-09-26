@@ -2,10 +2,13 @@
 package policy
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"regexp"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -135,9 +138,11 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 			}
 
 			log.Printf("peer PID: %d", authInfo.GetPID())
-			// HACK: This is a placeholder for getting the pod sandbox ID from the PID.
-			// In a real implementation, this would involve a lookup mechanism.
-			podSandboxID = fmt.Sprintf("pid-%d", authInfo.GetPID())
+			var err error
+			podSandboxID, err = p.getPodSandboxIDFromPID(authInfo.GetPID())
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get pod sandbox ID from PID: %v", err)
+			}
 		}
 
 		switch r := req.(type) {
@@ -150,27 +155,102 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 				return nil, status.Errorf(codes.PermissionDenied, "%s: CreateContainerRequest.PodSandboxId does not match", ErrMethodNotAllowed)
 			}
 		case *runtimeapi.StartContainerRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.StopContainerRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.RemoveContainerRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.ExecSyncRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.ExecRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.AttachRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.PortForwardRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if r.GetPodSandboxId() != podSandboxID {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: PortForwardRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+			}
 		case *runtimeapi.ContainerStatsRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		case *runtimeapi.ListContainerStatsRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if r.GetFilter() != nil && r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+			}
 		case *runtimeapi.UpdateContainerResourcesRequest:
-			// HACK: Check the container's pod sandbox ID.
+			if err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID); err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+			}
 		}
 
 		return handler(ctx, req)
 	}
+}
+
+func (p *podScopedPolicy) getPodSandboxIDFromPID(pid int32) (string, error) {
+	cgroupFile, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
+	if err != nil {
+		return "", fmt.Errorf("failed to open cgroup file: %w", err)
+	}
+	defer cgroupFile.Close()
+
+	scanner := bufio.NewScanner(cgroupFile)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// This regex is designed to extract the container ID from a cgroup line.
+		// It looks for a pattern that starts with a path, followed by a container ID,
+		// and ends with a .scope extension.
+		// For example: /kubepods/burstable/pod<POD_ID>/<CONTAINER_ID>
+		r := regexp.MustCompile(`\S+/(?:docker|crio)-([0-9a-f]{64})\.scope$`)
+		matches := r.FindStringSubmatch(line)
+		if len(matches) == 2 {
+			containerID := matches[1]
+			// HACK: We need to get the full container ID from the runtime.
+			// This is a placeholder for that logic.
+			return p.getPodSandboxIDFromContainerID(context.Background(), containerID)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to read cgroup file: %w", err)
+	}
+
+	return "", errors.New("failed to find container ID in cgroup file")
+}
+
+func (p *podScopedPolicy) getPodSandboxIDFromContainerID(ctx context.Context, containerID string) (string, error) {
+	resp, err := p.runtimeClient.ContainerStatus(ctx, &runtimeapi.ContainerStatusRequest{
+		ContainerId: containerID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get container status: %w", err)
+	}
+
+	return resp.GetStatus().GetPodSandboxId(), nil
+}
+
+func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, containerID, expectedPodSandboxID string) error {
+	podSandboxID, err := p.getPodSandboxIDFromContainerID(ctx, containerID)
+	if err != nil {
+		return fmt.Errorf("failed to get pod sandbox ID from container ID: %w", err)
+	}
+
+	if podSandboxID != expectedPodSandboxID {
+		return fmt.Errorf("container %q does not belong to pod sandbox %q", containerID, expectedPodSandboxID)
+	}
+
+	return nil
 }
