@@ -104,3 +104,51 @@ For example, a user with access to the `readonly` socket could inspect container
 ```bash
 crictl --runtime-endpoint unix:///var/run/cri-lite/readonly.sock ps
 ```
+
+## Demo
+
+This project includes Kubernetes manifests to demonstrate the functionality of `cri-lite`.
+
+### DaemonSet Deployment
+
+The `cri-lite` proxy can be deployed as a DaemonSet on your Kubernetes cluster. This will run a `cri-lite` pod on each node, providing a secure interface to the container runtime on that node.
+
+To deploy the DaemonSet, apply the `k8s/cri-lite.yaml` manifest:
+
+```bash
+kubectl apply -f k8s/cri-lite.yaml
+```
+
+The DaemonSet runs in a privileged security context and with `hostPID: true` to allow it to access the host's container runtime and see the PIDs of processes running on the node.
+
+### Example Pods
+
+The following example pods demonstrate how to use the `cri-lite` proxy.
+
+#### Image Management
+
+The `image-client-pod.yaml` manifest demonstrates the image management policy. This pod will:
+
+1.  List all images on the node.
+2.  Pull a new image.
+3.  Attempt to list containers (which will fail, as the policy does not allow it).
+
+To deploy the image client pod, apply the `k8s/image-client-pod.yaml` manifest:
+
+```bash
+kubectl apply -f k8s/image-client-pod.yaml
+```
+
+#### Pod-Scoped Policy
+
+The `podscoped-client-pod.yaml` manifest demonstrates the pod-scoped policy. This pod has two containers: a "victim" and an "attacker". The attacker container will:
+
+1.  List containers within the same pod.
+2.  Find the ID of the "victim" container.
+3.  Stop the "victim" container.
+
+To deploy the pod-scoped client pod, apply the `k8s/podscoped-client-pod.yaml` manifest:
+
+```bash
+kubectl apply -f k8s/podscoped-client-pod.yaml
+```

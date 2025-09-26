@@ -55,3 +55,10 @@ crictl:
 		tar zxvf crictl-$$CRICTL_VERSION-linux-amd64.tar.gz; \
 		rm crictl-$$CRICTL_VERSION-linux-amd64.tar.gz; \
 	fi
+
+IMAGE_NAME ?= us-central1-docker.pkg.dev/skanzhelev-gke-dev/cri-lite/cri-lite
+
+push:
+	@echo "Building and pushing docker image..."
+	@docker build -t $(IMAGE_NAME):$(VERSION) k8s/
+	@docker push $(IMAGE_NAME):$(VERSION)

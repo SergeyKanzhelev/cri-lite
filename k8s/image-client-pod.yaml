@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-proxy-client
+spec:
+  containers:
+  - name: client
+    image: ubuntu:22.04
+    command:
+    - "sh"
+    - "-c"
+    - |
+      set -ex
+      apt-get update && apt-get install -y curl
+      
+      echo "--- Downloading crictl ---"
+      CRICTL_VERSION="v1.28.0"
+      curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz --output crictl.tar.gz
+      tar zxvf crictl.tar.gz
+      
+      SOCKET="unix:///run/cri-lite/image/cri-lite.sock"
+      
+      echo "--- Listing images (should succeed) ---"
+      ./crictl --runtime-endpoint $SOCKET images
+      
+      echo "--- Pulling busybox image (should succeed) ---"
+      ./crictl --runtime-endpoint $SOCKET pull busybox
+      
+      echo "--- Listing containers (should fail) ---"
+      if ./crictl --runtime-endpoint $SOCKET ps -a; then
+        echo "Error: crictl ps command succeeded when it should have failed!"
+        exit 1
+      else
+        echo "Success: crictl ps command failed as expected."
+      fi
+      
+      echo "--- Test complete, sleeping ---"
+      sleep infinity
+    volumeMounts:
+    - name: cri-lite-image-socket
+      mountPath: /run/cri-lite/image
+  volumes:
+  - name: cri-lite-image-socket
+    hostPath:
+      path: /var/run/cri-lite/image
+      type: Directory
