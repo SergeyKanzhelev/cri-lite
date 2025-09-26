@@ -34,7 +34,7 @@ fmt: $(GOLANGCI_LINT)
 
 test:
 	@echo "Running tests..."
-	@go test ./...
+	@go test -v ./...
 
 clean-test:
 	@echo "Cleaning up test artifacts..."

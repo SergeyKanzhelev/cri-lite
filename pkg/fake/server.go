@@ -12,8 +12,8 @@ import (
 
 // Server is a fake CRI server for testing.
 type Server struct {
-	runtimeapi.UnimplementedRuntimeServiceServer
-	runtimeapi.UnimplementedImageServiceServer
+	runtimeapi.RuntimeServiceServer
+	runtimeapi.ImageServiceServer
 }
 
 // NewServer creates a new fake CRI server.
