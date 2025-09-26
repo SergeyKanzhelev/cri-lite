@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 
 	"google.golang.org/grpc"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -17,31 +16,19 @@ type Server struct {
 	runtimeapi.UnimplementedImageServiceServer
 }
 
-// Start starts the fake CRI server on the specified socket.
-func (s *Server) Start(socketPath string) error {
-	err := os.Remove(socketPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove existing socket: %w", err)
-	}
-
-	lis, err := (&net.ListenConfig{
-		Control:   nil,
-		KeepAlive: 0,
-	}).Listen(context.Background(), "unix", socketPath)
+// NewServer creates a new fake CRI server.
+func NewServer(socketPath string) (*grpc.Server, net.Listener, error) {
+	lis, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return fmt.Errorf("failed to listen on socket: %w", err)
+		return nil, nil, fmt.Errorf("failed to listen on socket: %w", err)
 	}
 
+	s := &Server{}
 	grpcServer := grpc.NewServer()
 	runtimeapi.RegisterRuntimeServiceServer(grpcServer, s)
 	runtimeapi.RegisterImageServiceServer(grpcServer, s)
 
-	err = grpcServer.Serve(lis)
-	if err != nil {
-		return fmt.Errorf("failed to serve grpc server: %w", err)
-	}
-
-	return nil
+	return grpcServer, lis, nil
 }
 
 // Version returns a fake version.
@@ -55,22 +42,59 @@ func (s *Server) Version(_ context.Context, _ *runtimeapi.VersionRequest) (*runt
 }
 
 // ListContainers returns a fake list of containers.
-func (s *Server) ListContainers(_ context.Context, _ *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
-	return &runtimeapi.ListContainersResponse{
-		Containers: []*runtimeapi.Container{
-			{
-				Id:           "test-container-id",
-				PodSandboxId: "test-sandbox-id",
-				Metadata: &runtimeapi.ContainerMetadata{
-					Name:    "test-container",
-					Attempt: 1,
-				},
-				Image: &runtimeapi.ImageSpec{
-					Image: "test-image",
-				},
-				State: runtimeapi.ContainerState_CONTAINER_RUNNING,
+func (s *Server) ListContainers(_ context.Context, req *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
+	containers := []*runtimeapi.Container{
+		{
+			Id:           "test-container-id",
+			PodSandboxId: "test-sandbox-id",
+			Metadata: &runtimeapi.ContainerMetadata{
+				Name:    "test-container",
+				Attempt: 1,
 			},
+			Image: &runtimeapi.ImageSpec{
+				Image: "test-image",
+			},
+			State: runtimeapi.ContainerState_CONTAINER_RUNNING,
 		},
+	}
+
+	if req.GetFilter() != nil && req.GetFilter().GetId() != "" {
+		for _, c := range containers {
+			if c.Id == req.GetFilter().GetId() {
+				return &runtimeapi.ListContainersResponse{
+					Containers: []*runtimeapi.Container{c},
+				}, nil
+			}
+		}
+		return &runtimeapi.ListContainersResponse{}, nil
+	}
+
+	return &runtimeapi.ListContainersResponse{
+		Containers: containers,
+	}, nil
+}
+
+// ContainerStatus returns a fake container status.
+func (s *Server) ContainerStatus(_ context.Context, req *runtimeapi.ContainerStatusRequest) (*runtimeapi.ContainerStatusResponse, error) {
+	return &runtimeapi.ContainerStatusResponse{
+		Status: &runtimeapi.ContainerStatus{
+			Id: req.GetContainerId(),
+			Metadata: &runtimeapi.ContainerMetadata{
+				Name:    "test-container",
+				Attempt: 1,
+			},
+			Image: &runtimeapi.ImageSpec{
+				Image: "test-image",
+			},
+			State: runtimeapi.ContainerState_CONTAINER_RUNNING,
+		},
+	}, nil
+}
+
+// RunPodSandbox is a fake implementation.
+func (s *Server) RunPodSandbox(_ context.Context, _ *runtimeapi.RunPodSandboxRequest) (*runtimeapi.RunPodSandboxResponse, error) {
+	return &runtimeapi.RunPodSandboxResponse{
+		PodSandboxId: "test-sandbox-id",
 	}, nil
 }
 

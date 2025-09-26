@@ -4,12 +4,8 @@ package main
 import (
 	"flag"
 	"log"
-	"strings"
-
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 
 	"cri-lite/pkg/config"
-	"cri-lite/pkg/fake"
 	"cri-lite/pkg/policy"
 	"cri-lite/pkg/proxy"
 )
@@ -39,22 +35,6 @@ func main() {
 
 	log.Printf("Using runtime endpoint: %s", cfg.RuntimeEndpoint)
 	log.Printf("Using image endpoint: %s", cfg.ImageEndpoint)
-
-	// Start the fake CRI server.
-	go func() {
-		log.Println("Starting fake CRI server")
-
-		fakeServer := &fake.Server{
-			UnimplementedRuntimeServiceServer: runtimeapi.UnimplementedRuntimeServiceServer{},
-			UnimplementedImageServiceServer:   runtimeapi.UnimplementedImageServiceServer{},
-		}
-		socketPath := strings.TrimPrefix(cfg.RuntimeEndpoint, "unix://")
-
-		err := fakeServer.Start(socketPath)
-		if err != nil {
-			log.Fatalf("failed to start fake CRI server: %v", err)
-		}
-	}()
 
 	for _, endpoint := range cfg.Endpoints {
 		go func(endpoint config.Endpoint) {

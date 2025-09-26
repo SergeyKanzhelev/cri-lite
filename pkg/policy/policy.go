@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"gopkg.in/yaml.v3"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -232,14 +233,20 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(pid int32) (string, error) {
 }
 
 func (p *podScopedPolicy) getPodSandboxIDFromContainerID(ctx context.Context, containerID string) (string, error) {
-	resp, err := p.runtimeClient.ContainerStatus(ctx, &runtimeapi.ContainerStatusRequest{
-		ContainerId: containerID,
+	resp, err := p.runtimeClient.ListContainers(ctx, &runtimeapi.ListContainersRequest{
+		Filter: &runtimeapi.ContainerFilter{
+			Id: containerID,
+		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to get container status: %w", err)
+		return "", fmt.Errorf("failed to list containers: %w", err)
 	}
 
-	return resp.GetStatus().GetPodSandboxId(), nil
+	if len(resp.GetContainers()) != 1 {
+		return "", fmt.Errorf("expected 1 container, got %d", len(resp.GetContainers()))
+	}
+
+	return resp.GetContainers()[0].GetPodSandboxId(), nil
 }
 
 func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, containerID, expectedPodSandboxID string) error {
@@ -253,4 +260,33 @@ func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, conta
 	}
 
 	return nil
+}
+
+// Config is the configuration for a policy.
+type Config struct {
+	ReadOnly bool `yaml:"readonly"`
+}
+
+// NewFromConfig creates a new policy from a config file.
+func NewFromConfig(path string) (Policy, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read policy config file: %w", err)
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal policy config: %w", err)
+	}
+
+	return NewFromConfigData(&config)
+}
+
+// NewFromConfigData creates a new policy from a config struct.
+func NewFromConfigData(config *Config) (Policy, error) {
+	if config.ReadOnly {
+		return NewReadOnlyPolicy(), nil
+	}
+
+	return nil, errors.New("unknown policy type")
 }

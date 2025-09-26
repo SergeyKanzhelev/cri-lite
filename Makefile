@@ -2,7 +2,7 @@ BINARY_NAME=cri-lite
 GOLANGCI_LINT_VERSION := v2.5.0
 GOLANGCI_LINT := ./.bin/golangci-lint
 
-.PHONY: all build run clean lint lint-fix
+.PHONY: all build run clean lint test clean-test
 
 all: build
 
@@ -15,12 +15,11 @@ run:
 	@echo "Running $(BINARY_NAME)..."
 	@go run main.go --config config.yaml
 
-clean:
+clean: clean-test
 	@echo "Cleaning up..."
 	@rm -f bin/$(BINARY_NAME) /tmp/fake-cri.sock /tmp/cri-lite.sock
 	@rm -rf crictl crictl-v*-linux-amd64.tar.gz
 	@echo "Cleanup complete."
-
 lint: $(GOLANGCI_LINT)
 	$(GOLANGCI_LINT) run --config .golangci.yml ./...
 
@@ -32,3 +31,12 @@ $(GOLANGCI_LINT):
 
 fmt: $(GOLANGCI_LINT)
 	$(GOLANGCI_LINT) run --config .golangci.yml --fix ./...
+
+test:
+	@echo "Running tests..."
+	@go test ./...
+
+clean-test:
+	@echo "Cleaning up test artifacts..."
+	@rm -rf /tmp/cri-lite-test
+	@echo "Test cleanup complete."
