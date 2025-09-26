@@ -7,7 +7,7 @@ spec:
   - name: victim
     image: busybox:1.28
     command: ["sh", "-c", "echo 'Victim container is running'; sleep 3600"]
-  - name: attacker
+  - name: orchestrator
     image: ubuntu:22.04
     command:
     - "sh"

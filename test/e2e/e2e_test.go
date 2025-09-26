@@ -213,15 +213,15 @@ var _ = Describe("cri-lite E2E", func() {
 		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: victimContainerID})
 		Expect(err).NotTo(HaveOccurred())
 
-		By("creating an attacker container")
+		By("creating an orchestrator container")
 		crictlPath, err := filepath.Abs("../../crictl")
 		Expect(err).NotTo(HaveOccurred())
 
-		attackerContainerReq := &runtimeapi.CreateContainerRequest{
+		orchestratorContainerReq := &runtimeapi.CreateContainerRequest{
 			PodSandboxId: podSandboxID,
 			Config: &runtimeapi.ContainerConfig{
 				Metadata: &runtimeapi.ContainerMetadata{
-					Name: "attacker-container",
+					Name: "orchestrator-container",
 				},
 				Image: &runtimeapi.ImageSpec{
 					Image: "busybox",
@@ -240,25 +240,25 @@ var _ = Describe("cri-lite E2E", func() {
 			},
 			SandboxConfig: req.GetConfig(),
 		}
-		attackerContainerResp, err := realRuntimeClient.CreateContainer(ctx, attackerContainerReq)
+		orchestratorContainerResp, err := realRuntimeClient.CreateContainer(ctx, orchestratorContainerReq)
 		Expect(err).NotTo(HaveOccurred())
-		attackerContainerID := attackerContainerResp.GetContainerId()
+		orchestratorContainerID := orchestratorContainerResp.GetContainerId()
 
 		defer func() {
-			By("cleaning up attacker container")
-			_, err := realRuntimeClient.StopContainer(ctx, &runtimeapi.StopContainerRequest{ContainerId: attackerContainerID})
+			By("cleaning up orchestrator container")
+			_, err := realRuntimeClient.StopContainer(ctx, &runtimeapi.StopContainerRequest{ContainerId: orchestratorContainerID})
 			Expect(err).NotTo(HaveOccurred())
-			_, err = realRuntimeClient.RemoveContainer(ctx, &runtimeapi.RemoveContainerRequest{ContainerId: attackerContainerID})
+			_, err = realRuntimeClient.RemoveContainer(ctx, &runtimeapi.RemoveContainerRequest{ContainerId: orchestratorContainerID})
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
-		By("starting the attacker container")
-		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: attackerContainerID})
+		By("starting the orchestrator container")
+		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: orchestratorContainerID})
 		Expect(err).NotTo(HaveOccurred())
 
 		By("execing into the container to run crictl")
 		execReq := &runtimeapi.ExecSyncRequest{
-			ContainerId: attackerContainerID,
+			ContainerId: orchestratorContainerID,
 			Cmd:         []string{"/crictl", "--runtime-endpoint", "unix:///proxy.sock", "stop", victimContainerID},
 			Timeout:     10,
 		}
@@ -340,11 +340,11 @@ var _ = Describe("cri-lite E2E", func() {
 		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: victimContainerID})
 		Expect(err).NotTo(HaveOccurred())
 
-		By("creating an attacker pod sandbox")
-		attackerReq := &runtimeapi.RunPodSandboxRequest{
+		By("creating an orchestrator pod sandbox")
+		orchestratorReq := &runtimeapi.RunPodSandboxRequest{
 			Config: &runtimeapi.PodSandboxConfig{
 				Metadata: &runtimeapi.PodSandboxMetadata{
-					Name:      "attacker-sandbox-" + framework.RandomSuffix(),
+					Name:      "orchestrator-sandbox-" + framework.RandomSuffix(),
 					Namespace: "test-namespace",
 					Uid:       "test-uid-" + framework.RandomSuffix(),
 				},
@@ -355,28 +355,28 @@ var _ = Describe("cri-lite E2E", func() {
 				},
 			},
 		}
-		attackerResp, err := realRuntimeClient.RunPodSandbox(ctx, attackerReq)
+		orchestratorResp, err := realRuntimeClient.RunPodSandbox(ctx, orchestratorReq)
 		Expect(err).NotTo(HaveOccurred())
-		attackerPodSandboxID := attackerResp.GetPodSandboxId()
-		GinkgoLogr.Info("created attacker pod sandbox", "id", attackerPodSandboxID)
+		orchestratorPodSandboxID := orchestratorResp.GetPodSandboxId()
+		GinkgoLogr.Info("created orchestrator pod sandbox", "id", orchestratorPodSandboxID)
 
 		defer func() {
-			By("cleaning up attacker pod sandbox")
-			_, err := realRuntimeClient.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{PodSandboxId: attackerPodSandboxID})
+			By("cleaning up orchestrator pod sandbox")
+			_, err := realRuntimeClient.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{PodSandboxId: orchestratorPodSandboxID})
 			Expect(err).NotTo(HaveOccurred())
-			_, err = realRuntimeClient.RemovePodSandbox(ctx, &runtimeapi.RemovePodSandboxRequest{PodSandboxId: attackerPodSandboxID})
+			_, err = realRuntimeClient.RemovePodSandbox(ctx, &runtimeapi.RemovePodSandboxRequest{PodSandboxId: orchestratorPodSandboxID})
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
-		By("creating an attacker container")
+		By("creating an orchestrator container")
 		crictlPath, err := filepath.Abs("../../crictl")
 		Expect(err).NotTo(HaveOccurred())
 
-		attackerContainerReq := &runtimeapi.CreateContainerRequest{
-			PodSandboxId: attackerPodSandboxID,
+		orchestratorContainerReq := &runtimeapi.CreateContainerRequest{
+			PodSandboxId: orchestratorPodSandboxID,
 			Config: &runtimeapi.ContainerConfig{
 				Metadata: &runtimeapi.ContainerMetadata{
-					Name: "attacker-container",
+					Name: "orchestrator-container",
 				},
 				Image: &runtimeapi.ImageSpec{
 					Image: "busybox",
@@ -393,27 +393,27 @@ var _ = Describe("cri-lite E2E", func() {
 					},
 				},
 			},
-			SandboxConfig: attackerReq.GetConfig(),
+			SandboxConfig: orchestratorReq.GetConfig(),
 		}
-		attackerContainerResp, err := realRuntimeClient.CreateContainer(ctx, attackerContainerReq)
+		orchestratorContainerResp, err := realRuntimeClient.CreateContainer(ctx, orchestratorContainerReq)
 		Expect(err).NotTo(HaveOccurred())
-		attackerContainerID := attackerContainerResp.GetContainerId()
+		orchestratorContainerID := orchestratorContainerResp.GetContainerId()
 
 		defer func() {
-			By("cleaning up attacker container")
-			_, err := realRuntimeClient.StopContainer(ctx, &runtimeapi.StopContainerRequest{ContainerId: attackerContainerID})
+			By("cleaning up orchestrator container")
+			_, err := realRuntimeClient.StopContainer(ctx, &runtimeapi.StopContainerRequest{ContainerId: orchestratorContainerID})
 			Expect(err).NotTo(HaveOccurred())
-			_, err = realRuntimeClient.RemoveContainer(ctx, &runtimeapi.RemoveContainerRequest{ContainerId: attackerContainerID})
+			_, err = realRuntimeClient.RemoveContainer(ctx, &runtimeapi.RemoveContainerRequest{ContainerId: orchestratorContainerID})
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
-		By("starting the attacker container")
-		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: attackerContainerID})
+		By("starting the orchestrator container")
+		_, err = realRuntimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{ContainerId: orchestratorContainerID})
 		Expect(err).NotTo(HaveOccurred())
 
 		By("execing into the container to run crictl")
 		execReq := &runtimeapi.ExecSyncRequest{
-			ContainerId: attackerContainerID,
+			ContainerId: orchestratorContainerID,
 			Cmd:         []string{"/crictl", "--runtime-endpoint", "unix:///proxy.sock", "stop", victimContainerID},
 			Timeout:     10,
 		}

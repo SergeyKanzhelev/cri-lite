@@ -163,7 +163,7 @@ kubectl apply -f k8s/image-client-pod.yaml
 
 #### Pod-Scoped Policy
 
-The `podscoped-client-pod.yaml` manifest demonstrates the pod-scoped policy. This pod has two containers: a "victim" and an "attacker". The attacker container will:
+The `podscoped-client-pod.yaml` manifest demonstrates the pod-scoped policy. This pod has two containers: a "victim" and an "orchestrator". The orchestrator container will:
 
 1.  List containers within the same pod.
 2.  Find the ID of the "victim" container.
