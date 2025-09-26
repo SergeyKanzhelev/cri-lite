@@ -1,6 +1,7 @@
 BINARY_NAME=cri-lite
 GOLANGCI_LINT_VERSION := v2.5.0
 GOLANGCI_LINT := ./.bin/golangci-lint
+VERSION := $(shell git describe --tags --dirty --always | sed 's/^v//')
 
 .PHONY: all build run clean lint test clean-test crictl
 
@@ -8,7 +9,7 @@ all: build
 
 build:
 	@echo "Building $(BINARY_NAME)..."
-	@go build -o bin/$(BINARY_NAME) .
+	@go build -ldflags "-X cri-lite/pkg/version.Version=$(VERSION)" -o bin/$(BINARY_NAME) .
 	@echo "$(BINARY_NAME) built successfully in bin/"
 
 run:

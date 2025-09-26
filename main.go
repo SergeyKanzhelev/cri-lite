@@ -8,6 +8,7 @@ import (
 	"cri-lite/pkg/config"
 	"cri-lite/pkg/policy"
 	"cri-lite/pkg/proxy"
+	"cri-lite/pkg/version"
 )
 
 func main() {
@@ -16,7 +17,14 @@ func main() {
 	imageEndpoint := flag.String("image-endpoint", "", "Endpoint of CRI image service")
 	flag.StringVar(runtimeEndpoint, "r", "", "Endpoint of CRI runtime service (shorthand)")
 	flag.StringVar(imageEndpoint, "i", "", "Endpoint of CRI image service (shorthand)")
+	showVersion := flag.Bool("version", false, "Show version")
+	flag.BoolVar(showVersion, "v", false, "Show version (shorthand)")
 	flag.Parse()
+
+	if *showVersion {
+		log.Printf("cri-lite version %s", version.Version)
+		return
+	}
 
 	cfg, err := config.LoadFile(*configFile)
 	if err != nil {
