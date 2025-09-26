@@ -105,6 +105,28 @@ For example, a user with access to the `readonly` socket could inspect container
 crictl --runtime-endpoint unix:///var/run/cri-lite/readonly.sock ps
 ```
 
+## Security Posture
+
+The security of `cri-lite` relies on the principle of least privilege, providing a limited interface to the container runtime. However, it is essential to understand the security context in which it operates.
+
+### Privilege Escalation
+
+`cri-lite` is designed to prevent privilege escalation beyond the scope of its configured policies. The proxy does not grant any additional permissions to the caller; it only allows a subset of the CRI API calls to be forwarded to the container runtime. The policies are enforced on the server-side, and the client has no ability to bypass them.
+
+### PID and Cgroup Spoofing
+
+The dynamic `PodScoped` policy relies on the caller's PID to determine its pod sandbox ID by inspecting the `/proc` filesystem and cgroups. This introduces a dependency on the integrity of the underlying node's process and cgroup management.
+
+A malicious actor with sufficient privileges on the node could potentially manipulate PIDs or cgroups to impersonate another pod and gain unauthorized access to its containers. However, it is important to note that the level of privilege required to perform such an attack is extremely high. An attacker would need to have root or near-root access to the node to modify the `/proc` filesystem or manipulate cgroups.
+
+To spoof a PID when calling the `cri-lite` socket, an attacker would need to be able to control the process that is making the call. This would require the ability to either inject code into a running process or to create a new process with a specific PID. Both of these actions require the `CAP_SYS_ADMIN` capability, which is not granted to containers by default.
+
+To modify cgroups, an attacker would need to have write access to the cgroup filesystem. This is a privileged operation that is typically only available to the root user on the host.
+
+If an attacker has already gained this level of access, they would almost certainly have the ability to bypass `cri-lite` and interact with the container runtime directly. Therefore, while PID and cgroup spoofing is a theoretical attack vector, it is not considered a practical vulnerability in the context of `cri-lite`'s intended use case.
+
+In summary, `cri-lite` provides a significant security enhancement by limiting the CRI API surface, but it is not a substitute for a secure and trusted node environment. The `cri-lite` DaemonSet is configured to run with `hostPID: true` to ensure it can correctly identify the caller's PID, but this also underscores the importance of securing the node itself.
+
 ## Demo
 
 This project includes Kubernetes manifests to demonstrate the functionality of `cri-lite`.
