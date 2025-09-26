@@ -92,6 +92,7 @@ var _ = Describe("PodScoped Policy", func() {
 				if err := conn.Close(); err != nil {
 					return err
 				}
+
 				return nil
 			}, "5s", "100ms").Should(Succeed())
 		})

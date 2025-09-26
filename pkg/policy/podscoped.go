@@ -90,11 +90,12 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 }
 
 func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32) (string, error) {
+	log.Printf("mapping pid %d to sandbox id", pid)
+
 	cgroupFile, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return "", fmt.Errorf("failed to open cgroup file: %w", err)
 	}
-
 	defer func() {
 		err := cgroupFile.Close()
 		if err != nil {
@@ -105,15 +106,13 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 	scanner := bufio.NewScanner(cgroupFile)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// This regex is designed to extract the container ID from a cgroup line.
-		// It looks for a pattern that starts with a path, followed by a container ID,
-		// and ends with a .scope extension.
-		// For example: /kubepods/burstable/pod<POD_ID>/<CONTAINER_ID>
-		r := regexp.MustCompile(`\S+/(?:docker|crio)-([0-9a-f]{64})\.scope$`)
+		// This regex is designed to extract a container ID from a cgroup line.
+		r := regexp.MustCompile(`([0-9a-f]{64})`)
 
 		matches := r.FindStringSubmatch(line)
 		if len(matches) == 2 {
 			containerID := matches[1]
+			log.Printf("found container id %q for pid %d", containerID, pid)
 			// HACK: We need to get the full container ID from the runtime.
 			// This is a placeholder for that logic.
 			return p.getPodSandboxIDFromContainerID(ctx, containerID)
@@ -124,7 +123,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 		return "", fmt.Errorf("failed to read cgroup file: %w", err)
 	}
 
-	return "", ErrContainerIDNotFound
+	return "", fmt.Errorf("failed to find container ID for pid %d", pid)
 }
 
 func (p *podScopedPolicy) getPodSandboxIDFromContainerID(ctx context.Context, containerID string) (string, error) {
@@ -151,7 +150,7 @@ func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, conta
 	}
 
 	if podSandboxID != expectedPodSandboxID {
-		return fmt.Errorf("%w: container %q, pod sandbox %q", ErrContainerNotInPod, containerID, expectedPodSandboxID)
+		return status.Errorf(codes.PermissionDenied, "%s: container %s does not belong to pod sandbox %s", ErrMethodNotAllowed, containerID, expectedPodSandboxID)
 	}
 
 	return nil
@@ -182,12 +181,24 @@ func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, po
 		if err != nil {
 			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
 		}
-	case *runtimeapi.ExecSyncRequest:
+	case *runtimeapi.StopPodSandboxRequest:
+		if r.GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: StopPodSandboxRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+	case *runtimeapi.RemovePodSandboxRequest:
+		if r.GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: RemovePodSandboxRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+	case *runtimeapi.PodSandboxStatusRequest:
+		if r.GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: PodSandboxStatusRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+	case *runtimeapi.ContainerStatusRequest:
 		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
 		if err != nil {
 			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
 		}
-	case *runtimeapi.ExecRequest:
+	case *runtimeapi.ExecSyncRequest:
 		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
 		if err != nil {
 			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
@@ -198,8 +209,14 @@ func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, po
 			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
 		}
 	case *runtimeapi.PortForwardRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: PortForwardRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		err := p.verifyContainerPodSandboxID(ctx, r.GetPodSandboxId(), podSandboxID)
+		if err != nil {
+			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+		}
+	case *runtimeapi.UpdateContainerResourcesRequest:
+		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
+		if err != nil {
+			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
 		}
 	case *runtimeapi.ContainerStatsRequest:
 		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
@@ -210,10 +227,13 @@ func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, po
 		if r.GetFilter() != nil && r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
 			return status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
 		}
-	case *runtimeapi.UpdateContainerResourcesRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+	case *runtimeapi.PodSandboxStatsRequest:
+		if r.GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: PodSandboxStatsRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+	case *runtimeapi.UpdatePodSandboxResourcesRequest:
+		if r.GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: UpdatePodSandboxResourcesRequest.PodSandboxId does not match", ErrMethodNotAllowed)
 		}
 	}
 

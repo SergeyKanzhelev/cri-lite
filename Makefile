@@ -2,7 +2,7 @@ BINARY_NAME=cri-lite
 GOLANGCI_LINT_VERSION := v2.5.0
 GOLANGCI_LINT := ./.bin/golangci-lint
 
-.PHONY: all build run clean lint test clean-test
+.PHONY: all build run clean lint test clean-test crictl
 
 all: build
 
@@ -18,7 +18,7 @@ run:
 clean: clean-test
 	@echo "Cleaning up..."
 	@rm -f bin/$(BINARY_NAME) /tmp/fake-cri.sock /tmp/cri-lite.sock
-	@rm -rf crictl crictl-v*-linux-amd64.tar.gz
+	@rm -rf crictl
 	@echo "Cleanup complete."
 lint: $(GOLANGCI_LINT)
 	$(GOLANGCI_LINT) run --config .golangci.yml ./...
@@ -36,7 +36,21 @@ test:
 	@echo "Running tests..."
 	@go test -v ./...
 
+test-e2e:
+	@echo "Running E2E tests..."
+	sudo -E go test -v ./...
+
+
 clean-test:
 	@echo "Cleaning up test artifacts..."
 	@rm -rf /tmp/cri-lite-test
 	@echo "Test cleanup complete."
+
+crictl:
+	@if [ ! -f ./crictl ]; then \
+		echo "crictl not found, downloading..."; \
+		CRICTL_VERSION="v1.28.0"; \
+		curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$$CRICTL_VERSION/crictl-$$CRICTL_VERSION-linux-amd64.tar.gz --output crictl-$$CRICTL_VERSION-linux-amd64.tar.gz; \
+		tar zxvf crictl-$$CRICTL_VERSION-linux-amd64.tar.gz; \
+		rm crictl-$$CRICTL_VERSION-linux-amd64.tar.gz; \
+	fi

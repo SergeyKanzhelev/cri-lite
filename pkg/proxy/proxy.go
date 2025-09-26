@@ -3,6 +3,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -32,6 +33,7 @@ func (s *Server) CheckpointContainer(ctx context.Context, req *runtimeapi.Checkp
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy CheckpointContainer call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -41,6 +43,7 @@ func (s *Server) ContainerStats(ctx context.Context, req *runtimeapi.ContainerSt
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ContainerStats call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -50,6 +53,7 @@ func (s *Server) CreateContainer(ctx context.Context, req *runtimeapi.CreateCont
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy CreateContainer call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -59,6 +63,7 @@ func (s *Server) Exec(ctx context.Context, req *runtimeapi.ExecRequest) (*runtim
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy Exec call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -68,12 +73,15 @@ func (s *Server) ExecSync(ctx context.Context, req *runtimeapi.ExecSyncRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ExecSync call: %w", err)
 	}
+
 	return resp, nil
 }
 
+var errGetContainerEventsNotImplemented = errors.New("GetContainerEvents not implemented")
+
 // GetContainerEvents implements v1.RuntimeServiceServer.
 func (s *Server) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream grpc.ServerStreamingServer[runtimeapi.ContainerEventResponse]) error {
-	return fmt.Errorf("GetContainerEvents not implemented")
+	return errGetContainerEventsNotImplemented
 }
 
 // ListContainerStats implements v1.RuntimeServiceServer.
@@ -82,6 +90,7 @@ func (s *Server) ListContainerStats(ctx context.Context, req *runtimeapi.ListCon
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ListContainerStats call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -91,6 +100,7 @@ func (s *Server) ListMetricDescriptors(ctx context.Context, req *runtimeapi.List
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ListMetricDescriptors call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -100,6 +110,7 @@ func (s *Server) ListPodSandboxMetrics(ctx context.Context, req *runtimeapi.List
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ListPodSandboxMetrics call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -109,6 +120,7 @@ func (s *Server) ListPodSandboxStats(ctx context.Context, req *runtimeapi.ListPo
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy ListPodSandboxStats call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -118,6 +130,7 @@ func (s *Server) PodSandboxStats(ctx context.Context, req *runtimeapi.PodSandbox
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy PodSandboxStats call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -127,6 +140,7 @@ func (s *Server) PortForward(ctx context.Context, req *runtimeapi.PortForwardReq
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy PortForward call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -136,6 +150,7 @@ func (s *Server) RemoveContainer(ctx context.Context, req *runtimeapi.RemoveCont
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy RemoveContainer call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -145,6 +160,7 @@ func (s *Server) RemovePodSandbox(ctx context.Context, req *runtimeapi.RemovePod
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy RemovePodSandbox call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -154,6 +170,7 @@ func (s *Server) RuntimeConfig(ctx context.Context, req *runtimeapi.RuntimeConfi
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy RuntimeConfig call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -163,6 +180,7 @@ func (s *Server) StartContainer(ctx context.Context, req *runtimeapi.StartContai
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy StartContainer call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -172,6 +190,7 @@ func (s *Server) Status(ctx context.Context, req *runtimeapi.StatusRequest) (*ru
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy Status call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -181,6 +200,7 @@ func (s *Server) StopContainer(ctx context.Context, req *runtimeapi.StopContaine
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy StopContainer call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -190,6 +210,7 @@ func (s *Server) StopPodSandbox(ctx context.Context, req *runtimeapi.StopPodSand
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy StopPodSandbox call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -199,6 +220,7 @@ func (s *Server) UpdateContainerResources(ctx context.Context, req *runtimeapi.U
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy UpdateContainerResources call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -208,6 +230,7 @@ func (s *Server) UpdatePodSandboxResources(ctx context.Context, req *runtimeapi.
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy UpdatePodSandboxResources call: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -217,27 +240,29 @@ func (s *Server) UpdateRuntimeConfig(ctx context.Context, req *runtimeapi.Update
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy UpdateRuntimeConfig call: %w", err)
 	}
+
 	return resp, nil
 }
 
 // NewServer creates a new cri-lite proxy server.
 func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
+	s := &Server{}
+
 	runtimeConn, err := grpc.NewClient(runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to runtime endpoint: %w", err)
 	}
+
+	s.runtimeClient = runtimeapi.NewRuntimeServiceClient(runtimeConn)
 
 	imageConn, err := grpc.NewClient(imageEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to image endpoint: %w", err)
 	}
 
-	return &Server{
-		UnimplementedRuntimeServiceServer: runtimeapi.UnimplementedRuntimeServiceServer{},
-		UnimplementedImageServiceServer:   runtimeapi.UnimplementedImageServiceServer{},
-		runtimeClient:                     runtimeapi.NewRuntimeServiceClient(runtimeConn),
-		imageClient:                       runtimeapi.NewImageServiceClient(imageConn),
-	}, nil
+	s.imageClient = runtimeapi.NewImageServiceClient(imageConn)
+
+	return s, nil
 }
 
 func (s *Server) GetRuntimeClient() runtimeapi.RuntimeServiceClient {
