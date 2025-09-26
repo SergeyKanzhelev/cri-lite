@@ -60,7 +60,6 @@ func (s *Server) SetPolicies(policies []policy.Policy) {
 	s.policies = policies
 }
 
-
 // Start starts the gRPC server on the specified socket.
 func (s *Server) Start(socketPath string) error {
 	err := os.Remove(socketPath)

@@ -17,11 +17,12 @@ import (
 	"cri-lite/pkg/proxy"
 )
 
-var _ = Describe("ReadOnly Policy", func() {
+var _ = Describe("Image Management Policy", func() {
 	var (
 		server        *grpc.Server
 		proxyServer   *proxy.Server
 		client        runtimeapi.RuntimeServiceClient
+		imageClient   runtimeapi.ImageServiceClient
 		err           error
 		proxySocket   string
 		serverSocket  string
@@ -46,8 +47,7 @@ var _ = Describe("ReadOnly Policy", func() {
 		}()
 
 		// Create policy
-		p, err := policy.NewFromConfigData(&policy.Config{ReadOnly: true})
-		Expect(err).NotTo(HaveOccurred())
+		p := policy.NewImageManagementPolicy()
 
 		// Start proxy
 		proxyServer, err = proxy.NewServer(serverAddress, serverAddress)
@@ -78,30 +78,28 @@ var _ = Describe("ReadOnly Policy", func() {
 		)
 		Expect(err).NotTo(HaveOccurred())
 		client = runtimeapi.NewRuntimeServiceClient(conn)
+		imageClient = runtimeapi.NewImageServiceClient(conn)
 	})
 
 	AfterEach(func() {
 		if server != nil {
 			server.Stop()
 		}
-		// if proxyServer != nil {
-		// 	proxyServer.Stop()
-		// }
 		if sockDir != "" {
 			Expect(os.RemoveAll(sockDir)).To(Succeed())
 		}
 	})
 
-	Context("with readonly policy", func() {
-		It("should allow readonly calls and deny write calls", func() {
-			By("calling a readonly method")
+	Context("with image management policy", func() {
+		It("should allow image calls and deny runtime calls", func() {
+			By("calling an image method")
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			_, err := client.Version(ctx, &runtimeapi.VersionRequest{})
+			_, err := imageClient.ListImages(ctx, &runtimeapi.ListImagesRequest{})
 			Expect(err).NotTo(HaveOccurred())
 
-			By("calling a write method")
-			_, err = client.RunPodSandbox(ctx, &runtimeapi.RunPodSandboxRequest{})
+			By("calling a runtime method")
+			_, err = client.Version(ctx, &runtimeapi.VersionRequest{})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
 		})
