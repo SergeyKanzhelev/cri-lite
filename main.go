@@ -23,6 +23,7 @@ func main() {
 
 	if *showVersion {
 		log.Printf("cri-lite version %s", version.Version)
+
 		return
 	}
 

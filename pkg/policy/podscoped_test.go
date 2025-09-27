@@ -20,6 +20,7 @@ import (
 var _ = Describe("PodScoped Policy", func() {
 	var (
 		server            *grpc.Server
+		mock              *fake.Server
 		proxyServer       *proxy.Server
 		runtimeClient     runtimeapi.RuntimeServiceClient
 		imageClient       runtimeapi.ImageServiceClient
@@ -41,7 +42,7 @@ var _ = Describe("PodScoped Policy", func() {
 
 		// Start fake server
 		var lis net.Listener
-		server, lis, err = fake.NewServer(serverSocket)
+		server, lis, mock, err = fake.NewServer(serverSocket)
 		Expect(err).NotTo(HaveOccurred())
 		go func() {
 			defer GinkgoRecover()
@@ -127,6 +128,134 @@ var _ = Describe("PodScoped Policy", func() {
 			})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
+		})
+	})
+
+	Context("with container list filtering", func() {
+		var (
+			containerID1 = "container-id-1"
+			containerID2 = "container-id-2"
+		)
+		BeforeEach(func() {
+			// Create and set the policy
+			p := policy.NewPodScopedPolicy(podSandboxID, false, proxyServer.GetRuntimeClient())
+			proxyServer.SetPolicies([]policy.Policy{p})
+
+			// Start the proxy server
+			go func() {
+				defer GinkgoRecover()
+				Expect(proxyServer.Start(proxySocket)).To(Succeed())
+			}()
+
+			// Wait for the proxy to be ready
+			Eventually(func() error {
+				conn, err := net.Dial("unix", proxySocket)
+				if err != nil {
+					return err
+				}
+				if err := conn.Close(); err != nil {
+					return err
+				}
+				return nil
+			}, "5s", "100ms").Should(Succeed())
+
+			// Create containers in the fake runtime
+			mock.SetContainers([]*runtimeapi.Container{
+				{
+					Id:           containerID1,
+					PodSandboxId: podSandboxID,
+					Metadata: &runtimeapi.ContainerMetadata{
+						Name: "container-1",
+					},
+				},
+				{
+					Id:           containerID2,
+					PodSandboxId: otherPodSandboxID,
+					Metadata: &runtimeapi.ContainerMetadata{
+						Name: "container-2",
+					},
+				},
+			})
+			mock.SetContainerStats([]*runtimeapi.ContainerStats{
+				{
+					Attributes: &runtimeapi.ContainerAttributes{
+						Id: containerID1,
+						Metadata: &runtimeapi.ContainerMetadata{
+							Name: "container-1",
+						},
+					},
+				},
+				{
+					Attributes: &runtimeapi.ContainerAttributes{
+						Id: containerID2,
+						Metadata: &runtimeapi.ContainerMetadata{
+							Name: "container-2",
+						},
+					},
+				},
+			})
+			mock.SetPodSandboxStats([]*runtimeapi.PodSandboxStats{
+				{
+					Attributes: &runtimeapi.PodSandboxAttributes{
+						Id: podSandboxID,
+						Metadata: &runtimeapi.PodSandboxMetadata{
+							Name: "container-1",
+						},
+					},
+				},
+				{
+					Attributes: &runtimeapi.PodSandboxAttributes{
+						Id: otherPodSandboxID,
+						Metadata: &runtimeapi.PodSandboxMetadata{
+							Name: "container-2",
+						},
+					},
+				},
+			})
+		})
+
+		It("should filter ListContainers when runtime returns extra containers", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			resp, err := runtimeClient.ListContainers(ctx, &runtimeapi.ListContainersRequest{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.GetContainers()).To(HaveLen(1))
+			Expect(resp.GetContainers()[0].GetId()).To(Equal(containerID1))
+		})
+
+		It("should filter ListContainerStats", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			resp, err := runtimeClient.ListContainerStats(ctx, &runtimeapi.ListContainerStatsRequest{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.GetStats()).To(HaveLen(1))
+			Expect(resp.GetStats()[0].GetAttributes().GetMetadata().GetName()).To(Equal("container-1"))
+		})
+
+		It("should filter ListPodSandboxStats", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			resp, err := runtimeClient.ListPodSandboxStats(ctx, &runtimeapi.ListPodSandboxStatsRequest{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.GetStats()).To(HaveLen(1))
+			Expect(resp.GetStats()[0].GetAttributes().GetMetadata().GetName()).To(Equal("container-1"))
+		})
+
+		It("should not filter ListContainers when runtime respects the filter", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			resp, err := runtimeClient.ListContainers(ctx, &runtimeapi.ListContainersRequest{
+				Filter: &runtimeapi.ContainerFilter{
+					PodSandboxId: podSandboxID,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.GetContainers()).To(HaveLen(1))
+			Expect(resp.GetContainers()[0].GetId()).To(Equal(containerID1))
 		})
 	})
 })

@@ -14,21 +14,54 @@ import (
 type Server struct {
 	runtimeapi.RuntimeServiceServer
 	runtimeapi.ImageServiceServer
+	containers      []*runtimeapi.Container
+	stats           []*runtimeapi.ContainerStats
+	podSandboxStats []*runtimeapi.PodSandboxStats
 }
 
 // NewServer creates a new fake CRI server.
-func NewServer(socketPath string) (*grpc.Server, net.Listener, error) {
+func NewServer(socketPath string) (*grpc.Server, net.Listener, *Server, error) {
 	lis, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to listen on socket: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to listen on socket: %w", err)
 	}
 
-	s := &Server{}
+	s := &Server{
+		containers: []*runtimeapi.Container{
+			{
+				Id:           "test-container-id",
+				PodSandboxId: "test-sandbox-id",
+				Metadata: &runtimeapi.ContainerMetadata{
+					Name:    "test-container",
+					Attempt: 1,
+				},
+				Image: &runtimeapi.ImageSpec{
+					Image: "test-image",
+				},
+				State: runtimeapi.ContainerState_CONTAINER_RUNNING,
+			},
+		},
+	}
 	grpcServer := grpc.NewServer()
 	runtimeapi.RegisterRuntimeServiceServer(grpcServer, s)
 	runtimeapi.RegisterImageServiceServer(grpcServer, s)
 
-	return grpcServer, lis, nil
+	return grpcServer, lis, s, nil
+}
+
+// SetContainers sets the list of containers for the fake server.
+func (s *Server) SetContainers(containers []*runtimeapi.Container) {
+	s.containers = containers
+}
+
+// SetContainerStats sets the list of container stats for the fake server.
+func (s *Server) SetContainerStats(stats []*runtimeapi.ContainerStats) {
+	s.stats = stats
+}
+
+// SetPodSandboxStats sets the list of pod sandbox stats for the fake server.
+func (s *Server) SetPodSandboxStats(stats []*runtimeapi.PodSandboxStats) {
+	s.podSandboxStats = stats
 }
 
 // Version returns a fake version.
@@ -43,35 +76,25 @@ func (s *Server) Version(_ context.Context, _ *runtimeapi.VersionRequest) (*runt
 
 // ListContainers returns a fake list of containers.
 func (s *Server) ListContainers(_ context.Context, req *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
-	containers := []*runtimeapi.Container{
-		{
-			Id:           "test-container-id",
-			PodSandboxId: "test-sandbox-id",
-			Metadata: &runtimeapi.ContainerMetadata{
-				Name:    "test-container",
-				Attempt: 1,
-			},
-			Image: &runtimeapi.ImageSpec{
-				Image: "test-image",
-			},
-			State: runtimeapi.ContainerState_CONTAINER_RUNNING,
-		},
+	if req.GetFilter() == nil {
+		return &runtimeapi.ListContainersResponse{
+			Containers: s.containers,
+		}, nil
 	}
 
-	if req.GetFilter() != nil && req.GetFilter().GetId() != "" {
-		for _, c := range containers {
-			if c.GetId() == req.GetFilter().GetId() {
-				return &runtimeapi.ListContainersResponse{
-					Containers: []*runtimeapi.Container{c},
-				}, nil
-			}
+	var filtered []*runtimeapi.Container
+	for _, c := range s.containers {
+		if req.GetFilter().GetId() != "" && c.GetId() != req.GetFilter().GetId() {
+			continue
 		}
-
-		return &runtimeapi.ListContainersResponse{}, nil
+		if req.GetFilter().GetPodSandboxId() != "" && c.GetPodSandboxId() != req.GetFilter().GetPodSandboxId() {
+			continue
+		}
+		filtered = append(filtered, c)
 	}
 
 	return &runtimeapi.ListContainersResponse{
-		Containers: containers,
+		Containers: filtered,
 	}, nil
 }
 
@@ -143,8 +166,24 @@ func (s *Server) ContainerStats(_ context.Context, _ *runtimeapi.ContainerStatsR
 }
 
 // ListContainerStats returns fake container stats.
-func (s *Server) ListContainerStats(_ context.Context, _ *runtimeapi.ListContainerStatsRequest) (*runtimeapi.ListContainerStatsResponse, error) {
-	return &runtimeapi.ListContainerStatsResponse{}, nil
+func (s *Server) ListContainerStats(_ context.Context, req *runtimeapi.ListContainerStatsRequest) (*runtimeapi.ListContainerStatsResponse, error) {
+	if req.GetFilter() == nil {
+		return &runtimeapi.ListContainerStatsResponse{
+			Stats: s.stats,
+		}, nil
+	}
+
+	var filtered []*runtimeapi.ContainerStats
+	for _, c := range s.stats {
+		if req.GetFilter().GetPodSandboxId() != "" && c.GetAttributes().GetMetadata().GetName() != "container-1" {
+			continue
+		}
+		filtered = append(filtered, c)
+	}
+
+	return &runtimeapi.ListContainerStatsResponse{
+		Stats: filtered,
+	}, nil
 }
 
 // PodSandboxStats returns fake pod sandbox stats.
@@ -153,8 +192,24 @@ func (s *Server) PodSandboxStats(_ context.Context, _ *runtimeapi.PodSandboxStat
 }
 
 // ListPodSandboxStats returns fake pod sandbox stats.
-func (s *Server) ListPodSandboxStats(_ context.Context, _ *runtimeapi.ListPodSandboxStatsRequest) (*runtimeapi.ListPodSandboxStatsResponse, error) {
-	return &runtimeapi.ListPodSandboxStatsResponse{}, nil
+func (s *Server) ListPodSandboxStats(_ context.Context, req *runtimeapi.ListPodSandboxStatsRequest) (*runtimeapi.ListPodSandboxStatsResponse, error) {
+	if req.GetFilter() == nil {
+		return &runtimeapi.ListPodSandboxStatsResponse{
+			Stats: s.podSandboxStats,
+		}, nil
+	}
+
+	var filtered []*runtimeapi.PodSandboxStats
+	for _, c := range s.podSandboxStats {
+		if req.GetFilter().GetId() != "" && c.GetAttributes().GetId() != req.GetFilter().GetId() {
+			continue
+		}
+		filtered = append(filtered, c)
+	}
+
+	return &runtimeapi.ListPodSandboxStatsResponse{
+		Stats: filtered,
+	}, nil
 }
 
 // ListPodSandbox returns a fake list of pod sandboxes.

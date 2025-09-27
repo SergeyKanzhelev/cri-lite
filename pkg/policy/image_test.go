@@ -39,7 +39,7 @@ var _ = Describe("Image Management Policy", func() {
 
 		// Start fake server
 		var lis net.Listener
-		server, lis, err = fake.NewServer(serverSocket)
+		server, lis, _, err := fake.NewServer(serverSocket)
 		Expect(err).NotTo(HaveOccurred())
 		go func() {
 			defer GinkgoRecover()

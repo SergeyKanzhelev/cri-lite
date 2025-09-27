@@ -85,7 +85,24 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 			return nil, err
 		}
 
-		return handler(ctx, req)
+		resp, err := handler(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		if r, ok := resp.(*runtimeapi.ListContainersResponse); ok {
+			var containers []*runtimeapi.Container
+
+			for _, c := range r.GetContainers() {
+				if c.GetPodSandboxId() == podSandboxID {
+					containers = append(containers, c)
+				}
+			}
+
+			r.Containers = containers
+		}
+
+		return resp, nil
 	}
 }
 
@@ -96,6 +113,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 	if err != nil {
 		return "", fmt.Errorf("failed to open cgroup file: %w", err)
 	}
+
 	defer func() {
 		err := cgroupFile.Close()
 		if err != nil {
@@ -159,8 +177,40 @@ func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, conta
 func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, podSandboxID string) error {
 	switch r := req.(type) {
 	case *runtimeapi.ListContainersRequest:
-		if r.GetFilter() != nil && r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: ListContainersRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+		if r.GetFilter() == nil {
+			r.Filter = &runtimeapi.ContainerFilter{
+				PodSandboxId: podSandboxID,
+			}
+		} else {
+			if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
+				return status.Errorf(codes.PermissionDenied, "%s: ListContainersRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+			}
+
+			r.Filter.PodSandboxId = podSandboxID
+		}
+	case *runtimeapi.ListContainerStatsRequest:
+		if r.GetFilter() == nil {
+			r.Filter = &runtimeapi.ContainerStatsFilter{
+				PodSandboxId: podSandboxID,
+			}
+		} else {
+			if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
+				return status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+			}
+
+			r.Filter.PodSandboxId = podSandboxID
+		}
+	case *runtimeapi.ListPodSandboxStatsRequest:
+		if r.GetFilter() == nil {
+			r.Filter = &runtimeapi.PodSandboxStatsFilter{
+				Id: podSandboxID,
+			}
+		} else {
+			if r.GetFilter().GetId() != "" && r.GetFilter().GetId() != podSandboxID {
+				return status.Errorf(codes.PermissionDenied, "%s: ListPodSandboxStatsRequest.Filter.Id does not match", ErrMethodNotAllowed)
+			}
+
+			r.Filter.Id = podSandboxID
 		}
 	case *runtimeapi.CreateContainerRequest:
 		if r.GetPodSandboxId() != podSandboxID {
@@ -222,10 +272,6 @@ func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, po
 		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
 		if err != nil {
 			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.ListContainerStatsRequest:
-		if r.GetFilter() != nil && r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
 		}
 	case *runtimeapi.PodSandboxStatsRequest:
 		if r.GetPodSandboxId() != podSandboxID {
