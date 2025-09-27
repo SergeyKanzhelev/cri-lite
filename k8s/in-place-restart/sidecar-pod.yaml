@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: inplace-restart-demo
+spec:
+  containers:
+  - name: main-app
+    image: busybox:1.28
+    command: ["sh", "-c", "echo 'Main application container started.'; sleep 3600"]
+  - name: sidecar-orchestrator
+    image: ubuntu:22.04
+    command:
+    - "sh"
+    - "-c"
+    - |
+      set -ex
+      apt-get update && apt-get install -y curl
+      
+      echo "--- Downloading crictl ---"
+      CRICTL_VERSION="v1.28.0"
+      curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz --output crictl.tar.gz
+      tar zxvf crictl.tar.gz
+      
+      SOCKET="unix:///run/cri-lite/dynamic-podscope/cri-lite.sock"
+      
+      echo "--- Listing containers to find main-app ---"
+      ./crictl --runtime-endpoint $SOCKET ps -a
+      
+      echo "--- Finding main-app container ID ---"
+      MAIN_APP_ID=$(./crictl --runtime-endpoint $SOCKET ps -a | grep 'main-app' | awk '{print $1}')
+      if [ -z "$MAIN_APP_ID" ]; then
+        echo "Error: Could not find main-app container ID!"
+        exit 1
+      fi
+      echo "Found main-app container ID: $MAIN_APP_ID"
+      
+      echo "--- Stopping main-app container (should succeed) ---"
+      ./crictl --runtime-endpoint $SOCKET stop "$MAIN_APP_ID"
+      
+      echo "--- Verifying main-app container is stopped ---"
+      # The grep should now return a non-zero exit code because the container is stopped
+      if ./crictl --runtime-endpoint $SOCKET ps -a | grep "$MAIN_APP_ID" | grep -q 'Running'; then
+        echo "Error: main-app container is still running!"
+        exit 1
+      else
+        echo "Success: main-app container is stopped as expected."
+      fi
+      
+      echo "--- Test complete, sleeping ---"
+      sleep infinity
+    volumeMounts:
+    - name: cri-lite-podscoped-socket
+      mountPath: /run/cri-lite/dynamic-podscope
+  volumes:
+  - name: cri-lite-podscoped-socket
+    hostPath:
+      path: /var/run/cri-lite/dynamic-podscope
+      type: Directory

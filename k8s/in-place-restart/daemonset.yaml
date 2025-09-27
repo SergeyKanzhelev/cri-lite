@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cri-lite-in-place-restart
+spec:
+  selector:
+    matchLabels:
+      app: cri-lite-in-place-restart
+  template:
+    metadata:
+      labels:
+        app: cri-lite-in-place-restart
+    spec:
+      hostPID: true
+      initContainers:
+      - name: kubelet-feature-gate-enabler
+        image: busybox:1.28
+        securityContext:
+          privileged: true
+        command:
+        - nsenter
+        - --target=1
+        - --mount
+        - --uts
+        - --ipc
+        - --net
+        - --pid
+        - --
+        - sh
+        - -c
+        - |
+          set -ex
+          KUBELET_CONFIG_PATH="/home/kubernetes/kubelet-config.yaml"
+          NEEDS_RESTART=false
+
+          # Idempotently enable the ContainerRestartRules feature gate
+          if ! grep -q "ContainerRestartRules: true" "$KUBELET_CONFIG_PATH"; then
+            # If the key exists (e.g., as false), remove it to avoid duplicates
+            sed -i '/ContainerRestartRules:/d' "$KUBELET_CONFIG_PATH"
+            
+            # Ensure the featureGates key exists
+            if ! grep -q "featureGates:" "$KUBELET_CONFIG_PATH"; then
+              echo -e "\nfeatureGates:" >> "$KUBELET_CONFIG_PATH"
+            fi
+            
+            # Add the feature gate
+            sed -i '/featureGates:/a \ \ ContainerRestartRules: true' "$KUBELET_CONFIG_PATH"
+            NEEDS_RESTART=true
+          else
+            echo "ContainerRestartRules feature gate already enabled."
+          fi
+
+          if [ "$NEEDS_RESTART" = true ]; then
+            echo "Restarting Kubelet to apply feature gate..."
+            systemctl restart kubelet
+          fi
+      - name: config-generator
+        image: busybox:1.28
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /run/cri-lite/readonly
+          mkdir -p /run/cri-lite/image
+          mkdir -p /run/cri-lite/dynamic-podscope
+          echo "$CRI_LITE_CONFIG" > /config/config.yaml
+        env:
+        - name: RUNTIME_ENDPOINT
+          value: "unix:///var/run/containerd/containerd.sock"
+        - name: IMAGE_ENDPOINT
+          value: "unix:///var/run/containerd/containerd.sock"
+        - name: CRI_LITE_CONFIG
+          value: |
+            runtime-endpoint: $(RUNTIME_ENDPOINT)
+            image-endpoint: $(IMAGE_ENDPOINT)
+            endpoints:
+            - endpoint: /run/cri-lite/readonly/cri-lite.sock
+              policies:
+              - ReadOnly
+            - endpoint: /run/cri-lite/image/cri-lite.sock
+              policies:
+              - ImageManagement
+            - endpoint: /run/cri-lite/dynamic-podscope/cri-lite.sock
+              policies:
+              - PodScoped
+              pod-sandbox-from-caller-pid: true
+        volumeMounts:
+        - name: cri-lite-config
+          mountPath: /config
+        - name: cri-lite-sockets
+          mountPath: /run/cri-lite
+      containers:
+      - name: cri-lite
+        image: us-central1-docker.pkg.dev/skanzhelev-gke-dev/cri-lite/cri-lite@sha256:db9d249ed46f55f1c4a39ddeccf5ff1846270098a27854695d275a904808a3fe
+        command: ["/cri-lite", "--config", "/config/config.yaml"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: cri-lite-config
+          mountPath: /config
+        - name: cri-lite-sockets
+          mountPath: /run/cri-lite
+        - name: containerd-socket
+          mountPath: /var/run/containerd/containerd.sock
+      volumes:
+      - name: cri-lite-config
+        emptyDir: {}
+      - name: cri-lite-sockets
+        hostPath:
+          path: /var/run/cri-lite
+          type: DirectoryOrCreate
+      - name: containerd-socket
+        hostPath:
+          path: /var/run/containerd/containerd.sock
+          type: Socket
