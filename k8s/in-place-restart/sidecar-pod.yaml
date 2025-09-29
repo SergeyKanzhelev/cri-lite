@@ -3,12 +3,11 @@ kind: Pod
 metadata:
   name: inplace-restart-demo
 spec:
-  containers:
-  - name: main-app
-    image: busybox:1.28
-    command: ["sh", "-c", "echo 'Main application container started.'; sleep 3600"]
+  restartPolicy: Never
+  initContainers:
   - name: sidecar-orchestrator
     image: ubuntu:22.04
+    restartPolicy: Always
     command:
     - "sh"
     - "-c"
@@ -20,6 +19,9 @@ spec:
       CRICTL_VERSION="v1.28.0"
       curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz --output crictl.tar.gz
       tar zxvf crictl.tar.gz
+
+      sleep 15 # wait for the main-app to start
+      echo "Start testing container stop via cri-lite pod-scoped socket"
       
       SOCKET="unix:///run/cri-lite/dynamic-podscope/cri-lite.sock"
       
@@ -51,6 +53,16 @@ spec:
     volumeMounts:
     - name: cri-lite-podscoped-socket
       mountPath: /run/cri-lite/dynamic-podscope
+  containers:
+  - name: main-app
+    image: busybox:1.28
+    command: ["sh", "-c", "echo 'Main application container started.'; sleep 3600"]
+    restartPolicy: Never
+    restartPolicyRules:
+    - action: Restart
+      exitCodes:
+        operator: In
+        values: [137]
   volumes:
   - name: cri-lite-podscoped-socket
     hostPath:
