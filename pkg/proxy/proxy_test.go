@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 
@@ -209,4 +210,84 @@ func TestProxyReconnect(t *testing.T) {
 		}
 	}
 	t.Log("Successfully reconnected to fake server")
+}
+
+type metadataCapturingFakeRuntimeService struct {
+	fakeRuntimeService
+	md metadata.MD
+}
+
+func (s *metadataCapturingFakeRuntimeService) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*runtimeapi.VersionResponse, error) {
+	s.md, _ = metadata.FromIncomingContext(ctx)
+	return s.fakeRuntimeService.Version(ctx, req)
+}
+
+func TestMetadataPropagation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	// 1. Backend setup
+	backendLis := bufconn.Listen(bufSize)
+	backendGrpcServer := grpc.NewServer()
+	fakeRuntime := &metadataCapturingFakeRuntimeService{}
+	runtimeapi.RegisterRuntimeServiceServer(backendGrpcServer, fakeRuntime)
+	go func() {
+		if err := backendGrpcServer.Serve(backendLis); err != nil {
+			t.Errorf("Backend server exited with error: %v", err)
+		}
+	}()
+	defer backendGrpcServer.Stop()
+
+	// 2. Proxy setup
+	backendConn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return backendLis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial backend bufnet: %v", err)
+	}
+	defer backendConn.Close()
+
+	proxyServer := &proxy.Server{}
+	p := policy.NewReadOnlyPolicy()
+	proxyServer.SetPolicy(p)
+	proxyServer.SetRuntimeClient(runtimeapi.NewRuntimeServiceClient(backendConn))
+	proxyServer.SetImageClient(runtimeapi.NewImageServiceClient(backendConn))
+
+	proxyLis := bufconn.Listen(bufSize)
+	proxyGrpcServer := grpc.NewServer(grpc.UnaryInterceptor(p.UnaryInterceptor()))
+	runtimeapi.RegisterRuntimeServiceServer(proxyGrpcServer, proxyServer)
+
+	go func() {
+		if err := proxyGrpcServer.Serve(proxyLis); err != nil {
+			t.Errorf("Proxy server exited with error: %v", err)
+		}
+	}()
+	defer proxyGrpcServer.Stop()
+
+	// 3. Client setup
+	proxyConn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return proxyLis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial proxy bufnet: %v", err)
+	}
+	defer proxyConn.Close()
+
+	runtimeClient := runtimeapi.NewRuntimeServiceClient(proxyConn)
+
+	// 4. The actual test
+	md := metadata.Pairs("user-agent", "my-test-client/1.0", "baggage", "my-baggage")
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	_, err = runtimeClient.Version(ctx, &runtimeapi.VersionRequest{})
+	if err != nil {
+		t.Fatalf("Version failed: %v", err)
+	}
+
+	if len(fakeRuntime.md.Get("user-agent")) == 0 || fakeRuntime.md.Get("user-agent")[0] != "my-test-client/1.0" {
+		t.Errorf("user-agent not propagated correctly, got: %v", fakeRuntime.md.Get("user-agent"))
+	}
+	if len(fakeRuntime.md.Get("baggage")) == 0 || fakeRuntime.md.Get("baggage")[0] != "my-baggage" {
+		t.Errorf("baggage not propagated, got: %v", fakeRuntime.md.Get("baggage"))
+	}
 }

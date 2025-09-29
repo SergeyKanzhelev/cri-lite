@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/klog/v2"
 
@@ -17,6 +18,14 @@ import (
 	"cri-lite/pkg/policy"
 	"cri-lite/pkg/version"
 )
+
+func forwardedContext(ctx context.Context) context.Context {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ctx
+	}
+	return metadata.NewOutgoingContext(ctx, md)
+}
 
 // Server is the gRPC server for the cri-lite proxy.
 type Server struct {
@@ -55,7 +64,7 @@ func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 
 func (s *Server) RemoveImage(ctx context.Context, req *runtimeapi.RemoveImageRequest) (*runtimeapi.RemoveImageResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.imageClient.RemoveImage(ctx, req)
+	resp, err := s.imageClient.RemoveImage(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to remove image")
 		return nil, fmt.Errorf("failed to remove image: %w", err)
@@ -66,7 +75,7 @@ func (s *Server) RemoveImage(ctx context.Context, req *runtimeapi.RemoveImageReq
 // ContainerStats implements v1.RuntimeServiceServer.
 func (s *Server) ContainerStats(ctx context.Context, req *runtimeapi.ContainerStatsRequest) (*runtimeapi.ContainerStatsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ContainerStats(ctx, req)
+	resp, err := s.runtimeClient.ContainerStats(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get container stats")
 		return nil, fmt.Errorf("failed to get container stats: %w", err)
@@ -77,7 +86,7 @@ func (s *Server) ContainerStats(ctx context.Context, req *runtimeapi.ContainerSt
 // CreateContainer implements v1.RuntimeServiceServer.
 func (s *Server) CreateContainer(ctx context.Context, req *runtimeapi.CreateContainerRequest) (*runtimeapi.CreateContainerResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.CreateContainer(ctx, req)
+	resp, err := s.runtimeClient.CreateContainer(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to create container")
 		return nil, fmt.Errorf("failed to create container: %w", err)
@@ -88,7 +97,7 @@ func (s *Server) CreateContainer(ctx context.Context, req *runtimeapi.CreateCont
 // Exec implements v1.RuntimeServiceServer.
 func (s *Server) Exec(ctx context.Context, req *runtimeapi.ExecRequest) (*runtimeapi.ExecResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.Exec(ctx, req)
+	resp, err := s.runtimeClient.Exec(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to exec in container")
 		return nil, fmt.Errorf("failed to exec in container: %w", err)
@@ -99,7 +108,7 @@ func (s *Server) Exec(ctx context.Context, req *runtimeapi.ExecRequest) (*runtim
 // ExecSync implements v1.RuntimeServiceServer.
 func (s *Server) ExecSync(ctx context.Context, req *runtimeapi.ExecSyncRequest) (*runtimeapi.ExecSyncResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ExecSync(ctx, req)
+	resp, err := s.runtimeClient.ExecSync(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to exec sync in container")
 		return nil, fmt.Errorf("failed to exec sync in container: %w", err)
@@ -119,7 +128,7 @@ func (s *Server) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream grp
 // ListContainerStats implements v1.RuntimeServiceServer.
 func (s *Server) ListContainerStats(ctx context.Context, req *runtimeapi.ListContainerStatsRequest) (*runtimeapi.ListContainerStatsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListContainerStats(ctx, req)
+	resp, err := s.runtimeClient.ListContainerStats(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list container stats")
 		return nil, fmt.Errorf("failed to list container stats: %w", err)
@@ -130,7 +139,7 @@ func (s *Server) ListContainerStats(ctx context.Context, req *runtimeapi.ListCon
 // ListMetricDescriptors implements v1.RuntimeServiceServer.
 func (s *Server) ListMetricDescriptors(ctx context.Context, req *runtimeapi.ListMetricDescriptorsRequest) (*runtimeapi.ListMetricDescriptorsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListMetricDescriptors(ctx, req)
+	resp, err := s.runtimeClient.ListMetricDescriptors(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list metric descriptors")
 		return nil, fmt.Errorf("failed to list metric descriptors: %w", err)
@@ -141,7 +150,7 @@ func (s *Server) ListMetricDescriptors(ctx context.Context, req *runtimeapi.List
 // ListPodSandboxMetrics implements v1.RuntimeServiceServer.
 func (s *Server) ListPodSandboxMetrics(ctx context.Context, req *runtimeapi.ListPodSandboxMetricsRequest) (*runtimeapi.ListPodSandboxMetricsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListPodSandboxMetrics(ctx, req)
+	resp, err := s.runtimeClient.ListPodSandboxMetrics(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list pod sandbox metrics")
 		return nil, fmt.Errorf("failed to list pod sandbox metrics: %w", err)
@@ -152,7 +161,7 @@ func (s *Server) ListPodSandboxMetrics(ctx context.Context, req *runtimeapi.List
 // ListPodSandboxStats implements v1.RuntimeServiceServer.
 func (s *Server) ListPodSandboxStats(ctx context.Context, req *runtimeapi.ListPodSandboxStatsRequest) (*runtimeapi.ListPodSandboxStatsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListPodSandboxStats(ctx, req)
+	resp, err := s.runtimeClient.ListPodSandboxStats(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list pod sandbox stats")
 		return nil, fmt.Errorf("failed to list pod sandbox stats: %w", err)
@@ -163,7 +172,7 @@ func (s *Server) ListPodSandboxStats(ctx context.Context, req *runtimeapi.ListPo
 // PodSandboxStats implements v1.RuntimeServiceServer.
 func (s *Server) PodSandboxStats(ctx context.Context, req *runtimeapi.PodSandboxStatsRequest) (*runtimeapi.PodSandboxStatsResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.PodSandboxStats(ctx, req)
+	resp, err := s.runtimeClient.PodSandboxStats(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get pod sandbox stats")
 		return nil, fmt.Errorf("failed to get pod sandbox stats: %w", err)
@@ -174,7 +183,7 @@ func (s *Server) PodSandboxStats(ctx context.Context, req *runtimeapi.PodSandbox
 // PortForward implements v1.RuntimeServiceServer.
 func (s *Server) PortForward(ctx context.Context, req *runtimeapi.PortForwardRequest) (*runtimeapi.PortForwardResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.PortForward(ctx, req)
+	resp, err := s.runtimeClient.PortForward(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to port forward")
 		return nil, fmt.Errorf("failed to port forward: %w", err)
@@ -185,7 +194,7 @@ func (s *Server) PortForward(ctx context.Context, req *runtimeapi.PortForwardReq
 // RemoveContainer implements v1.RuntimeServiceServer.
 func (s *Server) RemoveContainer(ctx context.Context, req *runtimeapi.RemoveContainerRequest) (*runtimeapi.RemoveContainerResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.RemoveContainer(ctx, req)
+	resp, err := s.runtimeClient.RemoveContainer(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to remove container")
 		return nil, fmt.Errorf("failed to remove container: %w", err)
@@ -196,7 +205,7 @@ func (s *Server) RemoveContainer(ctx context.Context, req *runtimeapi.RemoveCont
 // RemovePodSandbox implements v1.RuntimeServiceServer.
 func (s *Server) RemovePodSandbox(ctx context.Context, req *runtimeapi.RemovePodSandboxRequest) (*runtimeapi.RemovePodSandboxResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.RemovePodSandbox(ctx, req)
+	resp, err := s.runtimeClient.RemovePodSandbox(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to remove pod sandbox")
 		return nil, fmt.Errorf("failed to remove pod sandbox: %w", err)
@@ -207,7 +216,7 @@ func (s *Server) RemovePodSandbox(ctx context.Context, req *runtimeapi.RemovePod
 // RuntimeConfig implements v1.RuntimeServiceServer.
 func (s *Server) RuntimeConfig(ctx context.Context, req *runtimeapi.RuntimeConfigRequest) (*runtimeapi.RuntimeConfigResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.RuntimeConfig(ctx, req)
+	resp, err := s.runtimeClient.RuntimeConfig(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get runtime config")
 		return nil, fmt.Errorf("failed to get runtime config: %w", err)
@@ -218,7 +227,7 @@ func (s *Server) RuntimeConfig(ctx context.Context, req *runtimeapi.RuntimeConfi
 // StartContainer implements v1.RuntimeServiceServer.
 func (s *Server) StartContainer(ctx context.Context, req *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.StartContainer(ctx, req)
+	resp, err := s.runtimeClient.StartContainer(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to start container")
 		return nil, fmt.Errorf("failed to start container: %w", err)
@@ -229,7 +238,7 @@ func (s *Server) StartContainer(ctx context.Context, req *runtimeapi.StartContai
 // Status implements v1.RuntimeServiceServer.
 func (s *Server) Status(ctx context.Context, req *runtimeapi.StatusRequest) (*runtimeapi.StatusResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.Status(ctx, req)
+	resp, err := s.runtimeClient.Status(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get status")
 		return nil, fmt.Errorf("failed to get status: %w", err)
@@ -240,7 +249,7 @@ func (s *Server) Status(ctx context.Context, req *runtimeapi.StatusRequest) (*ru
 // StopContainer implements v1.RuntimeServiceServer.
 func (s *Server) StopContainer(ctx context.Context, req *runtimeapi.StopContainerRequest) (*runtimeapi.StopContainerResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.StopContainer(ctx, req)
+	resp, err := s.runtimeClient.StopContainer(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to stop container")
 		return nil, fmt.Errorf("failed to stop container: %w", err)
@@ -251,7 +260,7 @@ func (s *Server) StopContainer(ctx context.Context, req *runtimeapi.StopContaine
 // StopPodSandbox implements v1.RuntimeServiceServer.
 func (s *Server) StopPodSandbox(ctx context.Context, req *runtimeapi.StopPodSandboxRequest) (*runtimeapi.StopPodSandboxResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.StopPodSandbox(ctx, req)
+	resp, err := s.runtimeClient.StopPodSandbox(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to stop pod sandbox")
 		return nil, fmt.Errorf("failed to stop pod sandbox: %w", err)
@@ -262,7 +271,7 @@ func (s *Server) StopPodSandbox(ctx context.Context, req *runtimeapi.StopPodSand
 // UpdateContainerResources implements v1.RuntimeServiceServer.
 func (s *Server) UpdateContainerResources(ctx context.Context, req *runtimeapi.UpdateContainerResourcesRequest) (*runtimeapi.UpdateContainerResourcesResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.UpdateContainerResources(ctx, req)
+	resp, err := s.runtimeClient.UpdateContainerResources(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to update container resources")
 		return nil, fmt.Errorf("failed to update container resources: %w", err)
@@ -273,7 +282,7 @@ func (s *Server) UpdateContainerResources(ctx context.Context, req *runtimeapi.U
 // UpdatePodSandboxResources implements v1.RuntimeServiceServer.
 func (s *Server) UpdatePodSandboxResources(ctx context.Context, req *runtimeapi.UpdatePodSandboxResourcesRequest) (*runtimeapi.UpdatePodSandboxResourcesResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.UpdatePodSandboxResources(ctx, req)
+	resp, err := s.runtimeClient.UpdatePodSandboxResources(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to update pod sandbox resources")
 		return nil, fmt.Errorf("failed to update pod sandbox resources: %w", err)
@@ -284,7 +293,7 @@ func (s *Server) UpdatePodSandboxResources(ctx context.Context, req *runtimeapi.
 // UpdateRuntimeConfig implements v1.RuntimeServiceServer.
 func (s *Server) UpdateRuntimeConfig(ctx context.Context, req *runtimeapi.UpdateRuntimeConfigRequest) (*runtimeapi.UpdateRuntimeConfigResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.UpdateRuntimeConfig(ctx, req)
+	resp, err := s.runtimeClient.UpdateRuntimeConfig(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to update runtime config")
 		return nil, fmt.Errorf("failed to update runtime config: %w", err)
@@ -357,7 +366,7 @@ func (s *Server) Stop() {
 // Version proxies the Version call to the underlying runtime service.
 func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*runtimeapi.VersionResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.Version(ctx, req)
+	resp, err := s.runtimeClient.Version(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get version")
 		return nil, fmt.Errorf("failed to get version: %w", err)
@@ -372,7 +381,7 @@ func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*
 // ListContainers proxies the ListContainers call to the underlying runtime service.
 func (s *Server) ListContainers(ctx context.Context, req *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListContainers(ctx, req)
+	resp, err := s.runtimeClient.ListContainers(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list containers")
 		return nil, fmt.Errorf("failed to list containers: %w", err)
@@ -383,7 +392,7 @@ func (s *Server) ListContainers(ctx context.Context, req *runtimeapi.ListContain
 // ContainerStatus proxies the ContainerStatus call to the underlying runtime service.
 func (s *Server) ContainerStatus(ctx context.Context, req *runtimeapi.ContainerStatusRequest) (*runtimeapi.ContainerStatusResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ContainerStatus(ctx, req)
+	resp, err := s.runtimeClient.ContainerStatus(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get container status")
 		return nil, fmt.Errorf("failed to get container status: %w", err)
@@ -394,7 +403,7 @@ func (s *Server) ContainerStatus(ctx context.Context, req *runtimeapi.ContainerS
 // ListPodSandbox proxies the ListPodSandbox call to the underlying runtime service.
 func (s *Server) ListPodSandbox(ctx context.Context, req *runtimeapi.ListPodSandboxRequest) (*runtimeapi.ListPodSandboxResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ListPodSandbox(ctx, req)
+	resp, err := s.runtimeClient.ListPodSandbox(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list pod sandboxes")
 		return nil, fmt.Errorf("failed to list pod sandboxes: %w", err)
@@ -405,7 +414,7 @@ func (s *Server) ListPodSandbox(ctx context.Context, req *runtimeapi.ListPodSand
 // PodSandboxStatus proxies the PodSandboxStatus call to the underlying runtime service.
 func (s *Server) PodSandboxStatus(ctx context.Context, req *runtimeapi.PodSandboxStatusRequest) (*runtimeapi.PodSandboxStatusResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.PodSandboxStatus(ctx, req)
+	resp, err := s.runtimeClient.PodSandboxStatus(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get pod sandbox status")
 		return nil, fmt.Errorf("failed to get pod sandbox status: %w", err)
@@ -426,7 +435,7 @@ func (s *Server) RunPodSandbox(ctx context.Context, req *runtimeapi.RunPodSandbo
 // ReopenContainerLog proxies the ReopenContainerLog call to the underlying runtime service.
 func (s *Server) ReopenContainerLog(ctx context.Context, req *runtimeapi.ReopenContainerLogRequest) (*runtimeapi.ReopenContainerLogResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.ReopenContainerLog(ctx, req)
+	resp, err := s.runtimeClient.ReopenContainerLog(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to reopen container log")
 		return nil, fmt.Errorf("failed to reopen container log: %w", err)
@@ -437,7 +446,7 @@ func (s *Server) ReopenContainerLog(ctx context.Context, req *runtimeapi.ReopenC
 // Attach proxies the Attach call to the underlying runtime service.
 func (s *Server) Attach(ctx context.Context, req *runtimeapi.AttachRequest) (*runtimeapi.AttachResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.runtimeClient.Attach(ctx, req)
+	resp, err := s.runtimeClient.Attach(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to attach to container")
 		return nil, fmt.Errorf("failed to attach to container: %w", err)
@@ -448,7 +457,7 @@ func (s *Server) Attach(ctx context.Context, req *runtimeapi.AttachRequest) (*ru
 // ListImages proxies the ListImages call to the underlying image service.
 func (s *Server) ListImages(ctx context.Context, req *runtimeapi.ListImagesRequest) (*runtimeapi.ListImagesResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.imageClient.ListImages(ctx, req)
+	resp, err := s.imageClient.ListImages(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to list images")
 		return nil, fmt.Errorf("failed to list images: %w", err)
@@ -459,7 +468,7 @@ func (s *Server) ListImages(ctx context.Context, req *runtimeapi.ListImagesReque
 // ImageStatus proxies the ImageStatus call to the underlying image service.
 func (s *Server) ImageStatus(ctx context.Context, req *runtimeapi.ImageStatusRequest) (*runtimeapi.ImageStatusResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.imageClient.ImageStatus(ctx, req)
+	resp, err := s.imageClient.ImageStatus(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get image status")
 		return nil, fmt.Errorf("failed to get image status: %w", err)
@@ -470,7 +479,7 @@ func (s *Server) ImageStatus(ctx context.Context, req *runtimeapi.ImageStatusReq
 // ImageFsInfo proxies the ImageFsInfo call to the underlying image service.
 func (s *Server) ImageFsInfo(ctx context.Context, req *runtimeapi.ImageFsInfoRequest) (*runtimeapi.ImageFsInfoResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.imageClient.ImageFsInfo(ctx, req)
+	resp, err := s.imageClient.ImageFsInfo(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to get image fs info")
 		return nil, fmt.Errorf("failed to get image fs info: %w", err)
@@ -481,7 +490,7 @@ func (s *Server) ImageFsInfo(ctx context.Context, req *runtimeapi.ImageFsInfoReq
 // PullImage proxies the PullImage call to the underlying image service.
 func (s *Server) PullImage(ctx context.Context, req *runtimeapi.PullImageRequest) (*runtimeapi.PullImageResponse, error) {
 	logger := klog.FromContext(ctx)
-	resp, err := s.imageClient.PullImage(ctx, req)
+	resp, err := s.imageClient.PullImage(forwardedContext(ctx), req)
 	if err != nil {
 		logger.Error(err, "failed to pull image")
 		return nil, fmt.Errorf("failed to pull image: %w", err)
