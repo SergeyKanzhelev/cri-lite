@@ -27,6 +27,7 @@ type Server struct {
 	runtimeClient runtimeapi.RuntimeServiceClient
 	imageClient   runtimeapi.ImageServiceClient
 	policy        policy.Policy
+	grpcServer    *grpc.Server
 }
 
 // NewServer creates a new cri-lite proxy server.
@@ -334,16 +335,23 @@ func (s *Server) Start(socketPath string) error {
 		interceptors = s.policy.UnaryInterceptor()
 	}
 
-	grpcServer := grpc.NewServer(
+	s.grpcServer = grpc.NewServer(
 		grpc.Creds(creds.NewPIDCreds()),
 		grpc.UnaryInterceptor(interceptors),
 	)
 
-	runtimeapi.RegisterRuntimeServiceServer(grpcServer, s)
-	runtimeapi.RegisterImageServiceServer(grpcServer, s)
+	runtimeapi.RegisterRuntimeServiceServer(s.grpcServer, s)
+	runtimeapi.RegisterImageServiceServer(s.grpcServer, s)
 
 	klog.Infof("gRPC server started")
-	return fmt.Errorf("failed to serve grpc server: %w", grpcServer.Serve(lis))
+	return fmt.Errorf("failed to serve grpc server: %w", s.grpcServer.Serve(lis))
+}
+
+// Stop stops the gRPC server.
+func (s *Server) Stop() {
+	if s.grpcServer != nil {
+		s.grpcServer.Stop()
+	}
 }
 
 // Version proxies the Version call to the underlying runtime service.
