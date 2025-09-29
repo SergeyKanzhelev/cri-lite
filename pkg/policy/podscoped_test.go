@@ -111,14 +111,8 @@ var _ = Describe("PodScoped Policy", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("calling a correctly scoped runtime method (allowed)")
-			_, err = runtimeClient.RunPodSandbox(ctx, &runtimeapi.RunPodSandboxRequest{
-				Config: &runtimeapi.PodSandboxConfig{
-					Metadata: &runtimeapi.PodSandboxMetadata{
-						Name:      "test-sandbox",
-						Namespace: "test-namespace",
-						Uid:       "test-uid",
-					},
-				},
+			_, err = runtimeClient.PodSandboxStatus(ctx, &runtimeapi.PodSandboxStatusRequest{
+				PodSandboxId: podSandboxID,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
