@@ -44,7 +44,9 @@ func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 	s := &Server{}
 
 	klog.Infof("Connecting to runtime endpoint %s", runtimeEndpoint)
-	runtimeConn, err := grpc.NewClient(runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ctxRuntime, cancelRuntime := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelRuntime()
+	runtimeConn, err := grpc.DialContext(ctxRuntime, runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDisableRetry(), grpc.WithBlock(), grpc.WithUnaryInterceptor(userAgentClientInterceptor))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to runtime endpoint: %w", err)
 	}
@@ -52,7 +54,9 @@ func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 	s.runtimeClient = runtimeapi.NewRuntimeServiceClient(runtimeConn)
 
 	klog.Infof("Connecting to image endpoint %s", imageEndpoint)
-	imageConn, err := grpc.NewClient(imageEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ctxImage, cancelImage := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelImage()
+	imageConn, err := grpc.DialContext(ctxImage, imageEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDisableRetry(), grpc.WithBlock(), grpc.WithUnaryInterceptor(userAgentClientInterceptor))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to image endpoint: %w", err)
 	}

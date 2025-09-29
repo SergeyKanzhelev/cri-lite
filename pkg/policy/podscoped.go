@@ -120,6 +120,7 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
+// TODO: when it will become a problem we should add caching here.
 func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32) (string, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(4).Info("mapping pid to sandbox id", "pid", pid)
@@ -158,6 +159,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 	return "", fmt.Errorf("failed to find container ID for pid %d", pid)
 }
 
+// TODO: when it will become a problem we should add caching here.
 func (p *podScopedPolicy) getPodSandboxIDFromContainerID(ctx context.Context, containerID string) (string, error) {
 	resp, err := p.runtimeClient.ListContainers(ctx, &runtimeapi.ListContainersRequest{
 		Filter: &runtimeapi.ContainerFilter{

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
@@ -130,7 +131,10 @@ func TestProxyReconnect(t *testing.T) {
 		}
 	}
 
-	conn, err := grpc.NewClient("unix://"+proxySocket, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("unix://"+proxySocket, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithConnectParams(grpc.ConnectParams{
+		Backoff:           backoff.DefaultConfig,
+		MinConnectTimeout: 250 * time.Millisecond,
+	}))
 	if err != nil {
 		t.Fatalf("Failed to connect to proxy: %v", err)
 	}
