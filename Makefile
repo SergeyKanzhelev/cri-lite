@@ -35,11 +35,11 @@ fmt: $(GOLANGCI_LINT)
 
 test:
 	@echo "Running tests..."
-	@go test -v ./...
+	@go test -v ./pkg/...
 
 test-e2e:
 	@echo "Running E2E tests..."
-	sudo -E go test -v ./...
+	sudo -E go test -v ./test/...
 
 
 clean-test:
