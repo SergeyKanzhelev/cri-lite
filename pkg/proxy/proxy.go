@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,23 +25,34 @@ type Server struct {
 
 	runtimeClient runtimeapi.RuntimeServiceClient
 	imageClient   runtimeapi.ImageServiceClient
-	policies      []policy.Policy
+	policy        policy.Policy
 }
 
-func (s *Server) policyNames() string {
-	names := make([]string, 0, len(s.policies))
-	for _, p := range s.policies {
-		names = append(names, p.Name())
+// NewServer creates a new cri-lite proxy server.
+func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
+	s := &Server{}
+
+	runtimeConn, err := grpc.NewClient(runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to runtime endpoint: %w", err)
 	}
 
-	return strings.Join(names, ",")
+	s.runtimeClient = runtimeapi.NewRuntimeServiceClient(runtimeConn)
+
+	imageConn, err := grpc.NewClient(imageEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to image endpoint: %w", err)
+	}
+
+	s.imageClient = runtimeapi.NewImageServiceClient(imageConn)
+
+	return s, nil
 }
 
-// CheckpointContainer implements v1.RuntimeServiceServer.
-func (s *Server) CheckpointContainer(ctx context.Context, req *runtimeapi.CheckpointContainerRequest) (*runtimeapi.CheckpointContainerResponse, error) {
-	resp, err := s.runtimeClient.CheckpointContainer(ctx, req)
+func (s *Server) RemoveImage(ctx context.Context, req *runtimeapi.RemoveImageRequest) (*runtimeapi.RemoveImageResponse, error) {
+	resp, err := s.imageClient.RemoveImage(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to proxy CheckpointContainer call: %w", err)
+		return nil, fmt.Errorf("failed to proxy RemoveImage call: %w", err)
 	}
 
 	return resp, nil
@@ -255,27 +265,6 @@ func (s *Server) UpdateRuntimeConfig(ctx context.Context, req *runtimeapi.Update
 	return resp, nil
 }
 
-// NewServer creates a new cri-lite proxy server.
-func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
-	s := &Server{}
-
-	runtimeConn, err := grpc.NewClient(runtimeEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to runtime endpoint: %w", err)
-	}
-
-	s.runtimeClient = runtimeapi.NewRuntimeServiceClient(runtimeConn)
-
-	imageConn, err := grpc.NewClient(imageEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to image endpoint: %w", err)
-	}
-
-	s.imageClient = runtimeapi.NewImageServiceClient(imageConn)
-
-	return s, nil
-}
-
 func (s *Server) GetRuntimeClient() runtimeapi.RuntimeServiceClient {
 	return s.runtimeClient
 }
@@ -295,9 +284,9 @@ func (s *Server) SetImageClient(client runtimeapi.ImageServiceClient) {
 	s.imageClient = client
 }
 
-// SetPolicies sets the list of policies enforced by the server.
-func (s *Server) SetPolicies(policies []policy.Policy) {
-	s.policies = policies
+// SetPolicy sets the policy enforced by the server.
+func (s *Server) SetPolicy(p policy.Policy) {
+	s.policy = p
 }
 
 // Start starts the gRPC server on the specified socket.
@@ -312,14 +301,14 @@ func (s *Server) Start(socketPath string) error {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
 
-	var interceptors []grpc.UnaryServerInterceptor
-	for _, p := range s.policies {
-		interceptors = append(interceptors, p.UnaryInterceptor())
+	var interceptors grpc.UnaryServerInterceptor
+	if s.policy != nil {
+		interceptors = s.policy.UnaryInterceptor()
 	}
 
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds.NewPIDCreds()),
-		grpc.ChainUnaryInterceptor(interceptors...),
+		grpc.UnaryInterceptor(interceptors),
 	)
 
 	runtimeapi.RegisterRuntimeServiceServer(grpcServer, s)
@@ -451,12 +440,10 @@ func (s *Server) PullImage(ctx context.Context, req *runtimeapi.PullImageRequest
 	return resp, nil
 }
 
-// RemoveImage proxies the RemoveImage call to the underlying image service.
-func (s *Server) RemoveImage(ctx context.Context, req *runtimeapi.RemoveImageRequest) (*runtimeapi.RemoveImageResponse, error) {
-	resp, err := s.imageClient.RemoveImage(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RemoveImage call: %w", err)
+func (s *Server) policyNames() string {
+	if s.policy == nil {
+		return ""
 	}
 
-	return resp, nil
+	return s.policy.Name()
 }

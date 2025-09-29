@@ -16,6 +16,7 @@ import (
 )
 
 func TestE2E(t *testing.T) {
+	t.Parallel()
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "E2E Suite")
 }
@@ -644,6 +645,7 @@ var _ = Describe("cri-lite E2E", func() {
 		var statsOutput struct {
 			Stats []struct {
 				Attributes struct {
+					//nolint:tagliatelle // keeping the json tag as is to match the crictl output
 					ContainerID string `json:"id"`
 				} `json:"attributes"`
 			} `json:"stats"`
@@ -659,12 +661,13 @@ var _ = Describe("cri-lite E2E", func() {
 		for _, s := range statsOutput.Stats {
 			Expect(expectedContainerIDs[s.Attributes.ContainerID]).To(BeTrue())
 		}
-		By("execing into the container to run crictl statsp -o json")
-		execReq = &runtimeapi.ExecSyncRequest{
-			ContainerId: orchestratorContainerID,
-			Cmd:         []string{"/crictl", "--runtime-endpoint", "unix:///proxy.sock", "statsp", "-o", "json"},
-			Timeout:     10,
-		}
+		// This test fails - see TODO below
+		// By("execing into the container to run crictl statsp -o json")
+		// execReq = &runtimeapi.ExecSyncRequest{
+		//	ContainerId: orchestratorContainerID,
+		//	Cmd:         []string{"/crictl", "--runtime-endpoint", "unix:///proxy.sock", "statsp", "-o", "json"},
+		//  	Timeout:     10,
+		// }
 		// TODO: the test is currently failing because of:
 		// failed to get cgroup metrics for sandbox 0bfc21404353cb87eb9fc231c18feb1bb6df60c17cbc39a537ce0d40470e4611 because cgroupPath is empty
 		// execResp, err = realRuntimeClient.ExecSync(ctx, execReq)

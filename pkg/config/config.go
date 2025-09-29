@@ -19,10 +19,14 @@ type Config struct {
 
 // Endpoint defines the configuration for a single cri-lite endpoint.
 type Endpoint struct {
-	Endpoint                string   `yaml:"endpoint"`
-	Policies                []string `yaml:"policies"`
-	PodSandboxID            string   `yaml:"pod-sandbox-id,omitempty"`
-	PodSandboxFromCallerPID bool     `yaml:"pod-sandbox-from-caller-pid,omitempty"`
+	Endpoint string       `yaml:"endpoint"`
+	Policy   PolicyConfig `yaml:"policy"`
+}
+
+// PolicyConfig defines the configuration for a policy.
+type PolicyConfig struct {
+	Name       string                 `yaml:"name"`
+	Attributes map[string]interface{} `yaml:"attributes,omitempty"`
 }
 
 // LoadFile reads and parses the configuration from a YAML file.

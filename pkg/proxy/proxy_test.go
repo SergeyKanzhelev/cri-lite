@@ -18,12 +18,6 @@ import (
 
 const bufSize = 1024 * 1024
 
-var lis *bufconn.Listener
-
-func bufDialer(context.Context, string) (net.Conn, error) {
-	return lis.Dial()
-}
-
 type fakeRuntimeService struct {
 	runtimeapi.UnimplementedRuntimeServiceServer
 }
@@ -38,8 +32,10 @@ func (s *fakeRuntimeService) Version(ctx context.Context, req *runtimeapi.Versio
 }
 
 func TestVersion(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
-	lis = bufconn.Listen(bufSize)
+	lis := bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 	runtimeapi.RegisterRuntimeServiceServer(s, &fakeRuntimeService{})
 
@@ -52,7 +48,9 @@ func TestVersion(t *testing.T) {
 		}
 	}()
 
-	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return lis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -65,7 +63,7 @@ func TestVersion(t *testing.T) {
 	}()
 
 	proxyServer := &proxy.Server{}
-	proxyServer.SetPolicies([]policy.Policy{policy.NewReadOnlyPolicy()})
+	proxyServer.SetPolicy(policy.NewReadOnlyPolicy())
 	proxyServer.SetRuntimeClient(runtimeapi.NewRuntimeServiceClient(conn))
 	proxyServer.SetImageClient(runtimeapi.NewImageServiceClient(conn))
 

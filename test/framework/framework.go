@@ -2,6 +2,7 @@
 package framework
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -58,7 +59,7 @@ func (f *Framework) SetupProxy() error {
 	}
 
 	p := policy.NewPodScopedPolicy("", true, f.ProxyServer.GetRuntimeClient())
-	f.ProxyServer.SetPolicies([]policy.Policy{p})
+	f.ProxyServer.SetPolicy(p)
 
 	go func() {
 		err := f.ProxyServer.Start(f.ProxySocket)
@@ -67,9 +68,10 @@ func (f *Framework) SetupProxy() error {
 		}
 	}()
 
-	// Wait for the proxy to be ready
 	for range 20 {
-		conn, err := net.Dial("unix", f.ProxySocket)
+		dialer := &net.Dialer{}
+
+		conn, err := dialer.DialContext(context.Background(), "unix", f.ProxySocket)
 		if err == nil {
 			err := conn.Close()
 			if err != nil {

@@ -14,8 +14,6 @@ import (
 type imageManagementPolicy struct{}
 
 // NewImageManagementPolicy creates a new ImageManagement policy.
-//
-//nolint:ireturn // This function intentionally returns an interface.
 func NewImageManagementPolicy() Policy {
 	return &imageManagementPolicy{}
 }

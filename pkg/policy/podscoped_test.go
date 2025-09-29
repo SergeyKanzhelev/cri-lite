@@ -76,7 +76,7 @@ var _ = Describe("PodScoped Policy", func() {
 		BeforeEach(func() {
 			// Create and set the policy
 			p := policy.NewPodScopedPolicy(podSandboxID, false, proxyServer.GetRuntimeClient())
-			proxyServer.SetPolicies([]policy.Policy{p})
+			proxyServer.SetPolicy(p)
 
 			// Start the proxy server
 			go func() {
@@ -139,7 +139,7 @@ var _ = Describe("PodScoped Policy", func() {
 		BeforeEach(func() {
 			// Create and set the policy
 			p := policy.NewPodScopedPolicy(podSandboxID, false, proxyServer.GetRuntimeClient())
-			proxyServer.SetPolicies([]policy.Policy{p})
+			proxyServer.SetPolicy(p)
 
 			// Start the proxy server
 			go func() {

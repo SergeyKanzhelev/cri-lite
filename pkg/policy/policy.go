@@ -25,7 +25,7 @@ type Policy interface {
 
 // Config is the configuration for a policy.
 type Config struct {
-	ReadOnly bool `yaml:"readonly"`
+	ReadOnly bool `yaml:"read-only"`
 }
 
 // NewFromConfig creates a new policy from a config file.

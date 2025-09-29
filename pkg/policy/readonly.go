@@ -13,8 +13,6 @@ import (
 type readOnlyPolicy struct{}
 
 // NewReadOnlyPolicy creates a new ReadOnly policy.
-//
-//nolint:ireturn // This function intentionally returns an interface.
 func NewReadOnlyPolicy() Policy {
 	return &readOnlyPolicy{}
 }

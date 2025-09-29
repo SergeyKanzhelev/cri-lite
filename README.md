@@ -42,24 +42,24 @@ debug: true
 
 endpoints:
   - endpoint: "/var/run/cri-lite/readonly.sock"
-    policies:
-      - "ReadOnly"
+    policy:
+      name: "ReadOnly"
 
   - endpoint: "/var/run/cri-lite/image-manager.sock"
-    policies:
-      - "ImageManagement"
+    policy:
+      name: "ImageManagement"
 
   - endpoint: "/var/run/cri-lite/pod-app-static.sock"
-    policies:
-      - "PodScoped"
-    pod_sandbox_id: "some-hardcoded-sandbox-id"
+    policy:
+      name: "PodScoped"
+      attributes:
+        pod-sandbox-id: "some-hardcoded-sandbox-id"
 
   - endpoint: "/var/run/cri-lite/pod-app-dynamic.sock"
-    policies:
-      - "PodScoped"
-    # For PodScoped, the sandbox ID can be dynamically determined
-    # from the caller's PID.
-    pod_sandbox_from_caller_pid: true
+    policy:
+      name: "PodScoped"
+      attributes:
+        pod-sandbox-from-caller-pid: true
 ```
 
 **Global Settings:**
@@ -68,6 +68,12 @@ endpoints:
 *   `image-endpoint`: The upstream CRI socket for the image service. If not specified, `runtime-endpoint` is used.
 *   `timeout`: Timeout in seconds for CRI calls.
 *   `debug`: Enable debug logging.
+
+**Endpoint Settings:**
+*   `endpoint`: The UNIX socket path for this specific cri-lite endpoint (e.g., "/var/run/cri-lite/readonly.sock").
+*   `policy`: The policy to enforce for this endpoint. This is an object with the following fields:
+    *   `name`: The name of the policy (e.g., "ReadOnly", "ImageManagement", "PodScoped").
+    *   `attributes`: A map of key-value pairs that provide additional configuration for the policy. For example, the "PodScoped" policy uses this to specify `pod-sandbox-id` or `pod-sandbox-from-caller-pid`.
 
 ### Policies
 

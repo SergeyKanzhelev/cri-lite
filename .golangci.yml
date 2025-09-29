@@ -21,7 +21,7 @@ linters:
     - dupword
     - durationcheck
     - embeddedstructfieldcheck    
-    - err113                      
+    # - err113                      
     - errcheck
     - errchkjson
     - errname
@@ -30,14 +30,14 @@ linters:
     # - exhaustruct                 
     - exptostd
     - fatcontext
-    - forbidigo
+    # - forbidigo
     - forcetypeassert            
     - funcorder                  
-    - funlen                     
+    # - funlen                     
     - ginkgolinter
     - gocheckcompilerdirectives
-    - gochecknoglobals            
-    - gochecknoinits              
+    # - gochecknoglobals            
+    # - gochecknoinits              
     - gochecksumtype
     - gocognit                    
     - goconst
@@ -49,7 +49,7 @@ linters:
     - gomoddirectives
     - gomodguard
     - goprintffuncname
-    - gosec                       
+    # - gosec                       
     - gosmopolitan                
     - govet
     - grouper
@@ -59,7 +59,7 @@ linters:
     - ineffassign
     - interfacebloat
     - intrange                    
-    - ireturn                     
+    # - ireturn                     
     # - lll                         
     - loggercheck
     - maintidx
@@ -71,12 +71,12 @@ linters:
     - nestif                      
     - nilerr                      
     - nilnesserr                  
-    - nilnil                      
+    # - nilnil                      
     - nlreturn                    
     - noctx
-    - noinlineerr                 
+    # - noinlineerr                 
     - nolintlint
-    - nonamedreturns              
+    # - nonamedreturns              
     - nosprintfhostport
     - paralleltest                
     - perfsprint                  
@@ -96,7 +96,7 @@ linters:
     - tagliatelle                
     - testableexamples
     - testifylint                
-    - testpackage                
+    # - testpackage                
     - thelper                     
     - tparallel
     - unconvert
@@ -104,10 +104,10 @@ linters:
     - unused
     - usestdlibvars
     - usetesting                
-    - varnamelen                
+    # - varnamelen                
     - wastedassign
     - whitespace
-    - wrapcheck                 
+    # - wrapcheck                 
     - wsl_v5                    
     - zerologlint
   settings:

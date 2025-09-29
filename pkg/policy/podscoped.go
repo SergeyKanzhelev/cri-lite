@@ -32,8 +32,6 @@ type podScopedPolicy struct {
 }
 
 // NewPodScopedPolicy creates a new PodScoped policy.
-//
-//nolint:ireturn // This function intentionally returns an interface.
 func NewPodScopedPolicy(podSandboxID string, podSandboxFromCallerPID bool, runtimeClient runtimeapi.RuntimeServiceClient) Policy {
 	return &podScopedPolicy{
 		podSandboxID:            podSandboxID,
@@ -65,8 +63,8 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 		podSandboxID := p.podSandboxID
 		if p.podSandboxFromCallerPID {
-			peerInfo, ok := peer.FromContext(ctx)
-			if !ok {
+			peerInfo, isPeer := peer.FromContext(ctx)
+			if !isPeer {
 				return nil, status.Errorf(codes.InvalidArgument, "failed to get peer from context")
 			}
 
@@ -136,8 +134,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 		if len(matches) == 2 {
 			containerID := matches[1]
 			log.Printf("found container id %q for pid %d", containerID, pid)
-			// HACK: We need to get the full container ID from the runtime.
-			// This is a placeholder for that logic.
+
 			return p.getPodSandboxIDFromContainerID(ctx, containerID)
 		}
 	}
@@ -179,113 +176,107 @@ func (p *podScopedPolicy) verifyContainerPodSandboxID(ctx context.Context, conta
 	return nil
 }
 
+func (p *podScopedPolicy) verifyPodSandboxIDMatch(requestedPodSandboxID, expectedPodSandboxID, methodName string) error {
+	if requestedPodSandboxID != expectedPodSandboxID {
+		return status.Errorf(codes.PermissionDenied, "%s: %s does not match", ErrMethodNotAllowed, methodName)
+	}
+
+	return nil
+}
+
+func (p *podScopedPolicy) verifyContainerIDBelongsToPod(ctx context.Context, containerID, expectedPodSandboxID string) error {
+	err := p.verifyContainerPodSandboxID(ctx, containerID, expectedPodSandboxID)
+	if err != nil {
+		return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
+	}
+
+	return nil
+}
+
 func (p *podScopedPolicy) verifyRequest(ctx context.Context, req interface{}, podSandboxID string) error {
 	switch r := req.(type) {
 	case *runtimeapi.ListContainersRequest:
-		if r.GetFilter() == nil {
-			r.Filter = &runtimeapi.ContainerFilter{
-				PodSandboxId: podSandboxID,
-			}
-		} else {
-			if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
-				return status.Errorf(codes.PermissionDenied, "%s: ListContainersRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
-			}
-
-			r.Filter.PodSandboxId = podSandboxID
-		}
+		return p.verifyListContainersRequest(r, podSandboxID)
 	case *runtimeapi.ListContainerStatsRequest:
-		if r.GetFilter() == nil {
-			r.Filter = &runtimeapi.ContainerStatsFilter{
-				PodSandboxId: podSandboxID,
-			}
-		} else {
-			if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
-				return status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
-			}
-
-			r.Filter.PodSandboxId = podSandboxID
-		}
+		return p.verifyListContainerStatsRequest(r, podSandboxID)
 	case *runtimeapi.ListPodSandboxStatsRequest:
-		if r.GetFilter() == nil {
-			r.Filter = &runtimeapi.PodSandboxStatsFilter{
-				Id: podSandboxID,
-			}
-		} else {
-			if r.GetFilter().GetId() != "" && r.GetFilter().GetId() != podSandboxID {
-				return status.Errorf(codes.PermissionDenied, "%s: ListPodSandboxStatsRequest.Filter.Id does not match", ErrMethodNotAllowed)
-			}
-
-			r.Filter.Id = podSandboxID
-		}
+		return p.verifyListPodSandboxStatsRequest(r, podSandboxID)
 	case *runtimeapi.CreateContainerRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: CreateContainerRequest.PodSandboxId does not match", ErrMethodNotAllowed)
-		}
-	case *runtimeapi.StartContainerRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.StopContainerRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.RemoveContainerRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
+		return p.verifyPodSandboxIDMatch(r.GetPodSandboxId(), podSandboxID, "CreateContainerRequest.PodSandboxId")
 	case *runtimeapi.StopPodSandboxRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: StopPodSandboxRequest.PodSandboxId does not match", ErrMethodNotAllowed)
-		}
+		return p.verifyPodSandboxIDMatch(r.GetPodSandboxId(), podSandboxID, "StopPodSandboxRequest.PodSandboxId")
 	case *runtimeapi.RemovePodSandboxRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: RemovePodSandboxRequest.PodSandboxId does not match", ErrMethodNotAllowed)
-		}
+		return p.verifyPodSandboxIDMatch(r.GetPodSandboxId(), podSandboxID, "RemovePodSandboxRequest.PodSandboxId")
 	case *runtimeapi.PodSandboxStatusRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: PodSandboxStatusRequest.PodSandboxId does not match", ErrMethodNotAllowed)
-		}
-	case *runtimeapi.ContainerStatusRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.ExecSyncRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.AttachRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.PortForwardRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetPodSandboxId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.UpdateContainerResourcesRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.ContainerStatsRequest:
-		err := p.verifyContainerPodSandboxID(ctx, r.GetContainerId(), podSandboxID)
-		if err != nil {
-			return status.Errorf(codes.PermissionDenied, "%s: %v", ErrMethodNotAllowed, err)
-		}
-	case *runtimeapi.PodSandboxStatsRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: PodSandboxStatsRequest.PodSandboxId does not match", ErrMethodNotAllowed)
-		}
+		return p.verifyPodSandboxIDMatch(r.GetPodSandboxId(), podSandboxID, "PodSandboxStatusRequest.PodSandboxId")
 	case *runtimeapi.UpdatePodSandboxResourcesRequest:
-		if r.GetPodSandboxId() != podSandboxID {
-			return status.Errorf(codes.PermissionDenied, "%s: UpdatePodSandboxResourcesRequest.PodSandboxId does not match", ErrMethodNotAllowed)
+		return p.verifyPodSandboxIDMatch(r.GetPodSandboxId(), podSandboxID, "UpdatePodSandboxResourcesRequest.PodSandboxId")
+	case *runtimeapi.StartContainerRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.StopContainerRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.RemoveContainerRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.ContainerStatusRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.ExecSyncRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.AttachRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.PortForwardRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetPodSandboxId(), podSandboxID)
+	case *runtimeapi.UpdateContainerResourcesRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	case *runtimeapi.ContainerStatsRequest:
+		return p.verifyContainerIDBelongsToPod(ctx, r.GetContainerId(), podSandboxID)
+	default:
+		return nil
+	}
+}
+
+func (p *podScopedPolicy) verifyListContainersRequest(r *runtimeapi.ListContainersRequest, podSandboxID string) error {
+	if r.GetFilter() == nil {
+		r.Filter = &runtimeapi.ContainerFilter{
+			PodSandboxId: podSandboxID,
 		}
+	} else {
+		if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: ListContainersRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+
+		r.Filter.PodSandboxId = podSandboxID
+	}
+
+	return nil
+}
+
+func (p *podScopedPolicy) verifyListContainerStatsRequest(r *runtimeapi.ListContainerStatsRequest, podSandboxID string) error {
+	if r.GetFilter() == nil {
+		r.Filter = &runtimeapi.ContainerStatsFilter{
+			PodSandboxId: podSandboxID,
+		}
+	} else {
+		if r.GetFilter().GetPodSandboxId() != "" && r.GetFilter().GetPodSandboxId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: ListContainerStatsRequest.Filter.PodSandboxId does not match", ErrMethodNotAllowed)
+		}
+
+		r.Filter.PodSandboxId = podSandboxID
+	}
+
+	return nil
+}
+
+func (p *podScopedPolicy) verifyListPodSandboxStatsRequest(r *runtimeapi.ListPodSandboxStatsRequest, podSandboxID string) error {
+	if r.GetFilter() == nil {
+		r.Filter = &runtimeapi.PodSandboxStatsFilter{
+			Id: podSandboxID,
+		}
+	} else {
+		if r.GetFilter().GetId() != "" && r.GetFilter().GetId() != podSandboxID {
+			return status.Errorf(codes.PermissionDenied, "%s: ListPodSandboxStatsRequest.Filter.Id does not match", ErrMethodNotAllowed)
+		}
+
+		r.Filter.Id = podSandboxID
 	}
 
 	return nil

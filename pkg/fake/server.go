@@ -21,8 +21,10 @@ type Server struct {
 }
 
 // NewServer creates a new fake CRI server.
-func NewServer(socketPath string) (*grpc.Server, net.Listener, *Server, error) {
-	lis, err := net.Listen("unix", socketPath)
+func NewServer(socketPath string) (server *grpc.Server, listener net.Listener, fakeServer *Server, err error) {
+	lc := net.ListenConfig{}
+
+	lis, err := lc.Listen(context.Background(), "unix", socketPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to listen on socket: %w", err)
 	}
@@ -83,7 +85,7 @@ func (s *Server) ListContainers(_ context.Context, req *runtimeapi.ListContainer
 		}, nil
 	}
 
-	var filtered []*runtimeapi.Container
+	filtered := make([]*runtimeapi.Container, 0, len(s.containers))
 
 	for _, c := range s.containers {
 		if req.GetFilter().GetId() != "" && c.GetId() != req.GetFilter().GetId() {
@@ -177,7 +179,7 @@ func (s *Server) ListContainerStats(_ context.Context, req *runtimeapi.ListConta
 		}, nil
 	}
 
-	var filtered []*runtimeapi.ContainerStats
+	filtered := make([]*runtimeapi.ContainerStats, 0, len(s.stats))
 
 	for _, c := range s.stats {
 		if req.GetFilter().GetPodSandboxId() != "" && c.GetAttributes().GetMetadata().GetName() != "container-1" {
@@ -205,7 +207,7 @@ func (s *Server) ListPodSandboxStats(_ context.Context, req *runtimeapi.ListPodS
 		}, nil
 	}
 
-	var filtered []*runtimeapi.PodSandboxStats
+	filtered := make([]*runtimeapi.PodSandboxStats, 0, len(s.podSandboxStats))
 
 	for _, c := range s.podSandboxStats {
 		if req.GetFilter().GetId() != "" && c.GetAttributes().GetId() != req.GetFilter().GetId() {

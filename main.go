@@ -47,38 +47,57 @@ func main() {
 	log.Printf("Using image endpoint: %s", cfg.ImageEndpoint)
 
 	for _, endpoint := range cfg.Endpoints {
-		go func(endpoint config.Endpoint) {
-			log.Printf("Starting server for endpoint: %s", endpoint.Endpoint)
-
-			server, err := proxy.NewServer(cfg.RuntimeEndpoint, cfg.ImageEndpoint)
-			if err != nil {
-				log.Fatalf("failed to create server for endpoint %s: %v", endpoint.Endpoint, err)
-			}
-
-			var policies []policy.Policy
-
-			for _, p := range endpoint.Policies {
-				switch p {
-				case "ReadOnly":
-					policies = append(policies, policy.NewReadOnlyPolicy())
-				case "ImageManagement":
-					policies = append(policies, policy.NewImageManagementPolicy())
-				case "PodScoped":
-					policies = append(policies, policy.NewPodScopedPolicy(endpoint.PodSandboxID, endpoint.PodSandboxFromCallerPID, server.GetRuntimeClient()))
-				default:
-					log.Fatalf("unknown policy: %s", p)
-				}
-			}
-
-			server.SetPolicies(policies)
-
-			err = server.Start(endpoint.Endpoint)
-			if err != nil {
-				log.Fatalf("failed to start server for endpoint %s: %v", endpoint.Endpoint, err)
-			}
-		}(endpoint)
+		go startEndpoint(endpoint, cfg)
 	}
 
 	// Keep the main goroutine alive.
 	select {}
+}
+
+func startEndpoint(endpoint config.Endpoint, cfg *config.Config) {
+	log.Printf("Starting server for endpoint: %s", endpoint.Endpoint)
+
+	server, err := proxy.NewServer(cfg.RuntimeEndpoint, cfg.ImageEndpoint)
+	if err != nil {
+		log.Fatalf("failed to create server for endpoint %s: %v", endpoint.Endpoint, err)
+	}
+
+	var p policy.Policy
+
+	switch endpoint.Policy.Name {
+	case "ReadOnly":
+		p = policy.NewReadOnlyPolicy()
+	case "ImageManagement":
+		p = policy.NewImageManagementPolicy()
+	case "PodScoped":
+		var (
+			podSandboxID            string
+			podSandboxFromCallerPID bool
+		)
+
+		if val, ok := endpoint.Policy.Attributes["pod-sandbox-id"]; ok {
+			podSandboxID, ok = val.(string)
+			if !ok {
+				log.Fatalf("pod-sandbox-id must be a string for endpoint %s", endpoint.Endpoint)
+			}
+		}
+
+		if val, ok := endpoint.Policy.Attributes["pod-sandbox-from-caller-pid"]; ok {
+			podSandboxFromCallerPID, ok = val.(bool)
+			if !ok {
+				log.Fatalf("pod-sandbox-from-caller-pid must be a boolean for endpoint %s", endpoint.Endpoint)
+			}
+		}
+
+		p = policy.NewPodScopedPolicy(podSandboxID, podSandboxFromCallerPID, server.GetRuntimeClient())
+	default:
+		log.Fatalf("unknown policy: %s", endpoint.Policy.Name)
+	}
+
+	server.SetPolicy(p)
+
+	err = server.Start(endpoint.Endpoint)
+	if err != nil {
+		log.Fatalf("failed to start server for endpoint %s: %v", endpoint.Endpoint, err)
+	}
 }
