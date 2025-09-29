@@ -30,27 +30,37 @@ func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		// List of allowed read-only methods.
-		allowedMethods := map[string]bool{
-			"/runtime.v1.RuntimeService/Version":             true,
-			"/runtime.v1.RuntimeService/Status":              true,
-			"/runtime.v1.RuntimeService/ListContainers":      true,
-			"/runtime.v1.RuntimeService/ContainerStatus":     true,
-			"/runtime.v1.RuntimeService/ListPodSandbox":      true,
-			"/runtime.v1.RuntimeService/PodSandboxStatus":    true,
-			"/runtime.v1.RuntimeService/ContainerStats":      true,
-			"/runtime.v1.RuntimeService/ListContainerStats":  true,
-			"/runtime.v1.RuntimeService/PodSandboxStats":     true,
-			"/runtime.v1.RuntimeService/ListPodSandboxStats": true,
-			"/runtime.v1.ImageService/ListImages":            true,
-			"/runtime.v1.ImageService/ImageStatus":           true,
-			"/runtime.v1.ImageService/ImageFsInfo":           true,
-		}
+		interceptor := func(
+			ctx context.Context,
+			req interface{},
+			info *grpc.UnaryServerInfo,
+			handler grpc.UnaryHandler,
+		) (interface{}, error) {
+			// List of allowed read-only methods.
+			allowedMethods := map[string]bool{
+				"/runtime.v1.RuntimeService/Version":             true,
+				"/runtime.v1.RuntimeService/Status":              true,
+				"/runtime.v1.RuntimeService/ListContainers":      true,
+				"/runtime.v1.RuntimeService/ContainerStatus":     true,
+				"/runtime.v1.RuntimeService/ListPodSandbox":      true,
+				"/runtime.v1.RuntimeService/PodSandboxStatus":    true,
+				"/runtime.v1.RuntimeService/ContainerStats":      true,
+				"/runtime.v1.RuntimeService/ListContainerStats":  true,
+				"/runtime.v1.RuntimeService/PodSandboxStats":     true,
+				"/runtime.v1.RuntimeService/ListPodSandboxStats": true,
+				"/runtime.v1.ImageService/ListImages":            true,
+				"/runtime.v1.ImageService/ImageStatus":           true,
+				"/runtime.v1.ImageService/ImageFsInfo":           true,
+			}
 
-		if !allowedMethods[info.FullMethod] {
-			return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
-		}
+			if !allowedMethods[info.FullMethod] {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
+			}
 
-		return handler(ctx, req)
+			return handler(ctx, req)
+		}
+		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return loggingInterceptor(ctx, req, info, handler)
+		})
 	}
 }

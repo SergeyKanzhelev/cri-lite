@@ -31,4 +31,5 @@ require (
 	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 )

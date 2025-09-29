@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -53,64 +53,76 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
-			return handler(ctx, req)
-		}
-
-		if !strings.HasPrefix(info.FullMethod, "/runtime.v1.RuntimeService/") {
-			return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
-		}
-
-		podSandboxID := p.podSandboxID
-		if p.podSandboxFromCallerPID {
-			peerInfo, isPeer := peer.FromContext(ctx)
-			if !isPeer {
-				return nil, status.Errorf(codes.InvalidArgument, "failed to get peer from context")
+		interceptor := func(
+			ctx context.Context,
+			req interface{},
+			info *grpc.UnaryServerInfo,
+			handler grpc.UnaryHandler,
+		) (interface{}, error) {
+			logger := klog.FromContext(ctx)
+			if strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
+				return handler(ctx, req)
 			}
 
-			authInfo, ok := peerInfo.AuthInfo.(interface{ GetPID() int32 })
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "failed to get auth info from context")
+			if !strings.HasPrefix(info.FullMethod, "/runtime.v1.RuntimeService/") {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
 			}
 
-			log.Printf("peer PID: %d", authInfo.GetPID())
+			podSandboxID := p.podSandboxID
+			if p.podSandboxFromCallerPID {
+				peerInfo, isPeer := peer.FromContext(ctx)
+				if !isPeer {
+					return nil, status.Errorf(codes.InvalidArgument, "failed to get peer from context")
+				}
 
-			var err error
+				authInfo, ok := peerInfo.AuthInfo.(interface{ GetPID() int32 })
+				if !ok {
+					return nil, status.Errorf(codes.InvalidArgument, "failed to get auth info from context")
+				}
 
-			podSandboxID, err = p.getPodSandboxIDFromPID(ctx, authInfo.GetPID())
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get pod sandbox ID from PID: %v", err)
-			}
-		}
+				logger.V(4).Info("peer PID", "pid", authInfo.GetPID())
 
-		err := p.verifyRequest(ctx, req, podSandboxID)
-		if err != nil {
-			return nil, err
-		}
+				var err error
 
-		resp, err := handler(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-
-		if r, ok := resp.(*runtimeapi.ListContainersResponse); ok {
-			var containers []*runtimeapi.Container
-
-			for _, c := range r.GetContainers() {
-				if c.GetPodSandboxId() == podSandboxID {
-					containers = append(containers, c)
+				podSandboxID, err = p.getPodSandboxIDFromPID(ctx, authInfo.GetPID())
+				if err != nil {
+					return nil, status.Errorf(codes.Internal, "failed to get pod sandbox ID from PID: %v", err)
 				}
 			}
 
-			r.Containers = containers
-		}
+			err := p.verifyRequest(ctx, req, podSandboxID)
+			if err != nil {
+				return nil, err
+			}
 
-		return resp, nil
+			resp, err := handler(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+
+			if r, ok := resp.(*runtimeapi.ListContainersResponse); ok {
+				var containers []*runtimeapi.Container
+
+				for _, c := range r.GetContainers() {
+					if c.GetPodSandboxId() == podSandboxID {
+						containers = append(containers, c)
+					}
+				}
+
+				r.Containers = containers
+			}
+
+			return resp, nil
+		}
+		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return loggingInterceptor(ctx, req, info, handler)
+		})
 	}
 }
 
 func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32) (string, error) {
-	log.Printf("mapping pid %d to sandbox id", pid)
+	logger := klog.FromContext(ctx)
+	logger.V(4).Info("mapping pid to sandbox id", "pid", pid)
 
 	cgroupFile, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
@@ -120,7 +132,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 	defer func() {
 		err := cgroupFile.Close()
 		if err != nil {
-			log.Printf("failed to close cgroup file: %v", err)
+			logger.Error(err, "failed to close cgroup file")
 		}
 	}()
 
@@ -133,7 +145,7 @@ func (p *podScopedPolicy) getPodSandboxIDFromPID(ctx context.Context, pid int32)
 		matches := r.FindStringSubmatch(line)
 		if len(matches) == 2 {
 			containerID := matches[1]
-			log.Printf("found container id %q for pid %d", containerID, pid)
+			logger.V(4).Info("found container id for pid", "containerID", containerID, "pid", pid)
 
 			return p.getPodSandboxIDFromContainerID(ctx, containerID)
 		}

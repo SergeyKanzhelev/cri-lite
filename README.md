@@ -38,7 +38,8 @@ Here is a sample configuration file:
 runtime-endpoint: "unix:///run/containerd/containerd.sock"
 image-endpoint: "unix:///run/containerd/containerd.sock"
 timeout: 10
-debug: true
+logging:
+  verbosity: 3 # Default verbosity level is 3
 
 endpoints:
   - endpoint: "/var/run/cri-lite/readonly.sock"
@@ -67,7 +68,8 @@ endpoints:
 *   `runtime-endpoint`: The upstream CRI socket for the container runtime.
 *   `image-endpoint`: The upstream CRI socket for the image service. If not specified, `runtime-endpoint` is used.
 *   `timeout`: Timeout in seconds for CRI calls.
-*   `debug`: Enable debug logging.
+*   `logging`: Logging configuration.
+    *   `verbosity`: The klog verbosity level.
 
 **Endpoint Settings:**
 *   `endpoint`: The UNIX socket path for this specific cri-lite endpoint (e.g., "/var/run/cri-lite/readonly.sock").

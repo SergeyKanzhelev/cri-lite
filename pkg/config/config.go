@@ -13,8 +13,13 @@ type Config struct {
 	RuntimeEndpoint string     `yaml:"runtime-endpoint"`
 	ImageEndpoint   string     `yaml:"image-endpoint"`
 	Timeout         int        `yaml:"timeout"`
-	Debug           bool       `yaml:"debug"`
+	Logging         Logging    `yaml:"logging"`
 	Endpoints       []Endpoint `yaml:"endpoints"`
+}
+
+// Logging defines the logging configuration for cri-lite.
+type Logging struct {
+	Verbosity int `yaml:"verbosity"`
 }
 
 // Endpoint defines the configuration for a single cri-lite endpoint.
@@ -37,7 +42,11 @@ func LoadFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file %q: %w", path, err)
 	}
 
-	var config Config
+	config := Config{
+		Logging: Logging{
+			Verbosity: 3,
+		},
+	}
 
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {

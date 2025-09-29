@@ -2,12 +2,14 @@
 package policy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -50,4 +52,17 @@ func NewFromConfigData(config *Config) (Policy, error) {
 	}
 
 	return nil, ErrUnknownPolicyType
+}
+
+func loggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	logger := klog.NewKlogr().WithValues("method", info.FullMethod)
+	ctx = klog.NewContext(ctx, logger)
+
+	resp, err := handler(ctx, req)
+	if err != nil {
+		logger.V(4).Error(err, "request denied by policy")
+		return nil, err
+	}
+	logger.V(4).Info("request allowed by policy")
+	return resp, nil
 }

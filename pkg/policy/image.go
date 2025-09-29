@@ -31,14 +31,24 @@ func (p *imageManagementPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if info.FullMethod == "/runtime.v1.RuntimeService/Version" {
+		interceptor := func(
+			ctx context.Context,
+			req interface{},
+			info *grpc.UnaryServerInfo,
+			handler grpc.UnaryHandler,
+		) (interface{}, error) {
+			if info.FullMethod == "/runtime.v1.RuntimeService/Version" {
+				return handler(ctx, req)
+			}
+
+			if !strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
+			}
+
 			return handler(ctx, req)
 		}
-
-		if !strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
-			return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
-		}
-
-		return handler(ctx, req)
+		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return loggingInterceptor(ctx, req, info, handler)
+		})
 	}
 }
