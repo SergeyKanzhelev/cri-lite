@@ -42,6 +42,11 @@ func NewPodScopedPolicy(podSandboxID string, podSandboxFromCallerPID bool, runti
 	}
 }
 
+// Name implements the Policy interface.
+func (p *podScopedPolicy) Name() string {
+	return "podScoped"
+}
+
 // UnaryInterceptor implements the Policy interface.
 func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(

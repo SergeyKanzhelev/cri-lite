@@ -17,7 +17,9 @@ var (
 
 // Policy is the interface for a cri-lite policy.
 type Policy interface {
-	// UnaryInterceptor returns a gRPC unary interceptor that enforces the policy.
+	// Name returns the name of the policy.
+	Name() string
+	// UnaryInterceptor returns a gRPC unary server interceptor.
 	UnaryInterceptor() grpc.UnaryServerInterceptor
 }
 

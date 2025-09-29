@@ -19,6 +19,11 @@ func NewReadOnlyPolicy() Policy {
 	return &readOnlyPolicy{}
 }
 
+// Name implements the Policy interface.
+func (p *readOnlyPolicy) Name() string {
+	return "readonly"
+}
+
 // UnaryInterceptor implements the Policy interface.
 func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(

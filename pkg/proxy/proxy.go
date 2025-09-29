@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,6 +15,7 @@ import (
 
 	"cri-lite/pkg/creds"
 	"cri-lite/pkg/policy"
+	"cri-lite/pkg/version"
 )
 
 // Server is the gRPC server for the cri-lite proxy.
@@ -25,6 +27,15 @@ type Server struct {
 	runtimeClient runtimeapi.RuntimeServiceClient
 	imageClient   runtimeapi.ImageServiceClient
 	policies      []policy.Policy
+}
+
+func (s *Server) policyNames() string {
+	names := make([]string, 0, len(s.policies))
+	for _, p := range s.policies {
+		names = append(names, p.Name())
+	}
+
+	return strings.Join(names, ",")
 }
 
 // CheckpointContainer implements v1.RuntimeServiceServer.
@@ -274,6 +285,16 @@ func (s *Server) GetImageClient() runtimeapi.ImageServiceClient {
 	return s.imageClient
 }
 
+// SetRuntimeClient sets the underlying runtime service client.
+func (s *Server) SetRuntimeClient(client runtimeapi.RuntimeServiceClient) {
+	s.runtimeClient = client
+}
+
+// SetImageClient sets the underlying image service client.
+func (s *Server) SetImageClient(client runtimeapi.ImageServiceClient) {
+	s.imageClient = client
+}
+
 // SetPolicies sets the list of policies enforced by the server.
 func (s *Server) SetPolicies(policies []policy.Policy) {
 	s.policies = policies
@@ -291,7 +312,7 @@ func (s *Server) Start(socketPath string) error {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
 
-	interceptors := make([]grpc.UnaryServerInterceptor, 0, len(s.policies))
+	var interceptors []grpc.UnaryServerInterceptor
 	for _, p := range s.policies {
 		interceptors = append(interceptors, p.UnaryInterceptor())
 	}
@@ -313,6 +334,9 @@ func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to proxy Version call: %w", err)
 	}
+
+	resp.RuntimeVersion = fmt.Sprintf("%s via cri-lite (%s)", resp.GetRuntimeVersion(), version.Version)
+	resp.RuntimeName = fmt.Sprintf("%s with policy %s", resp.GetRuntimeName(), s.policyNames())
 
 	return resp, nil
 }

@@ -20,6 +20,11 @@ func NewImageManagementPolicy() Policy {
 	return &imageManagementPolicy{}
 }
 
+// Name implements the Policy interface.
+func (p *imageManagementPolicy) Name() string {
+	return "imageManagement"
+}
+
 // UnaryInterceptor implements the Policy interface.
 func (p *imageManagementPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
@@ -28,6 +33,10 @@ func (p *imageManagementPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
+		if info.FullMethod == "/runtime.v1.RuntimeService/Version" {
+			return handler(ctx, req)
+		}
+
 		if !strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
 			return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
 		}

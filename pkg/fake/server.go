@@ -14,6 +14,7 @@ import (
 type Server struct {
 	runtimeapi.RuntimeServiceServer
 	runtimeapi.ImageServiceServer
+
 	containers      []*runtimeapi.Container
 	stats           []*runtimeapi.ContainerStats
 	podSandboxStats []*runtimeapi.PodSandboxStats
@@ -83,13 +84,16 @@ func (s *Server) ListContainers(_ context.Context, req *runtimeapi.ListContainer
 	}
 
 	var filtered []*runtimeapi.Container
+
 	for _, c := range s.containers {
 		if req.GetFilter().GetId() != "" && c.GetId() != req.GetFilter().GetId() {
 			continue
 		}
+
 		if req.GetFilter().GetPodSandboxId() != "" && c.GetPodSandboxId() != req.GetFilter().GetPodSandboxId() {
 			continue
 		}
+
 		filtered = append(filtered, c)
 	}
 
@@ -174,10 +178,12 @@ func (s *Server) ListContainerStats(_ context.Context, req *runtimeapi.ListConta
 	}
 
 	var filtered []*runtimeapi.ContainerStats
+
 	for _, c := range s.stats {
 		if req.GetFilter().GetPodSandboxId() != "" && c.GetAttributes().GetMetadata().GetName() != "container-1" {
 			continue
 		}
+
 		filtered = append(filtered, c)
 	}
 
@@ -200,10 +206,12 @@ func (s *Server) ListPodSandboxStats(_ context.Context, req *runtimeapi.ListPodS
 	}
 
 	var filtered []*runtimeapi.PodSandboxStats
+
 	for _, c := range s.podSandboxStats {
 		if req.GetFilter().GetId() != "" && c.GetAttributes().GetId() != req.GetFilter().GetId() {
 			continue
 		}
+
 		filtered = append(filtered, c)
 	}
 
@@ -225,4 +233,9 @@ func (s *Server) PodSandboxStatus(_ context.Context, _ *runtimeapi.PodSandboxSta
 // ImageStatus returns a fake image status.
 func (s *Server) ImageStatus(_ context.Context, _ *runtimeapi.ImageStatusRequest) (*runtimeapi.ImageStatusResponse, error) {
 	return &runtimeapi.ImageStatusResponse{}, nil
+}
+
+// PortForward is a fake implementation.
+func (s *Server) PortForward(_ context.Context, _ *runtimeapi.PortForwardRequest) (*runtimeapi.PortForwardResponse, error) {
+	return &runtimeapi.PortForwardResponse{}, nil
 }

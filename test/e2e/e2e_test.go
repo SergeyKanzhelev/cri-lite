@@ -667,27 +667,27 @@ var _ = Describe("cri-lite E2E", func() {
 		}
 		// TODO: the test is currently failing because of:
 		// failed to get cgroup metrics for sandbox 0bfc21404353cb87eb9fc231c18feb1bb6df60c17cbc39a537ce0d40470e4611 because cgroupPath is empty
-		//execResp, err = realRuntimeClient.ExecSync(ctx, execReq)
-		//Expect(err).NotTo(HaveOccurred())
-		//if execResp.GetExitCode() != 0 {
+		// execResp, err = realRuntimeClient.ExecSync(ctx, execReq)
+		// Expect(err).NotTo(HaveOccurred())
+		// if execResp.GetExitCode() != 0 {
 		//	GinkgoLogr.Info("crictl statsp stderr", "stderr", string(execResp.GetStderr()))
 		//}
-		//Expect(execResp.GetExitCode()).To(BeZero())
+		// Expect(execResp.GetExitCode()).To(BeZero())
 		//
 
-		//By("verifying the output only contains pod sandbox stats from the first pod sandbox")
-		//var podStatsOutput struct {
+		// By("verifying the output only contains pod sandbox stats from the first pod sandbox")
+		// var podStatsOutput struct {
 		//	Stats []struct {
 		//		Attributes struct {
 		//			Id string `json:"id"`
 		//		} `json:"attributes"`
 		//	} `json:"stats"`
 		//}
-		//err = json.Unmarshal(execResp.GetStdout(), &podStatsOutput)
-		//Expect(err).NotTo(HaveOccurred())
+		// err = json.Unmarshal(execResp.GetStdout(), &podStatsOutput)
+		// Expect(err).NotTo(HaveOccurred())
 
-		//Expect(podStatsOutput.Stats).To(HaveLen(1))
-		//for _, s := range podStatsOutput.Stats {
+		// Expect(podStatsOutput.Stats).To(HaveLen(1))
+		// for _, s := range podStatsOutput.Stats {
 		//	Expect(s.Attributes.Id).To(Equal(podSandboxID1))
 		//}
 	})

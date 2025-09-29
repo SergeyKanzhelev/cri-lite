@@ -100,8 +100,7 @@ var _ = Describe("Image Management Policy", func() {
 
 			By("calling a runtime method")
 			_, err = client.Version(ctx, &runtimeapi.VersionRequest{})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })
