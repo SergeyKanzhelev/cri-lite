@@ -50,52 +50,32 @@ func NewServer(runtimeEndpoint, imageEndpoint string) (*Server, error) {
 }
 
 func (s *Server) RemoveImage(ctx context.Context, req *runtimeapi.RemoveImageRequest) (*runtimeapi.RemoveImageResponse, error) {
-	resp, err := s.imageClient.RemoveImage(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RemoveImage call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.imageClient.RemoveImage(ctx, req)
 }
 
 // ContainerStats implements v1.RuntimeServiceServer.
 func (s *Server) ContainerStats(ctx context.Context, req *runtimeapi.ContainerStatsRequest) (*runtimeapi.ContainerStatsResponse, error) {
-	resp, err := s.runtimeClient.ContainerStats(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ContainerStats call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ContainerStats(ctx, req)
 }
 
 // CreateContainer implements v1.RuntimeServiceServer.
 func (s *Server) CreateContainer(ctx context.Context, req *runtimeapi.CreateContainerRequest) (*runtimeapi.CreateContainerResponse, error) {
-	resp, err := s.runtimeClient.CreateContainer(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy CreateContainer call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.CreateContainer(ctx, req)
 }
 
 // Exec implements v1.RuntimeServiceServer.
 func (s *Server) Exec(ctx context.Context, req *runtimeapi.ExecRequest) (*runtimeapi.ExecResponse, error) {
-	resp, err := s.runtimeClient.Exec(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy Exec call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.Exec(ctx, req)
 }
 
 // ExecSync implements v1.RuntimeServiceServer.
 func (s *Server) ExecSync(ctx context.Context, req *runtimeapi.ExecSyncRequest) (*runtimeapi.ExecSyncResponse, error) {
-	resp, err := s.runtimeClient.ExecSync(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ExecSync call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ExecSync(ctx, req)
 }
 
 var errGetContainerEventsNotImplemented = errors.New("GetContainerEvents not implemented")
@@ -107,162 +87,98 @@ func (s *Server) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream grp
 
 // ListContainerStats implements v1.RuntimeServiceServer.
 func (s *Server) ListContainerStats(ctx context.Context, req *runtimeapi.ListContainerStatsRequest) (*runtimeapi.ListContainerStatsResponse, error) {
-	resp, err := s.runtimeClient.ListContainerStats(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListContainerStats call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListContainerStats(ctx, req)
 }
 
 // ListMetricDescriptors implements v1.RuntimeServiceServer.
 func (s *Server) ListMetricDescriptors(ctx context.Context, req *runtimeapi.ListMetricDescriptorsRequest) (*runtimeapi.ListMetricDescriptorsResponse, error) {
-	resp, err := s.runtimeClient.ListMetricDescriptors(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListMetricDescriptors call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListMetricDescriptors(ctx, req)
 }
 
 // ListPodSandboxMetrics implements v1.RuntimeServiceServer.
 func (s *Server) ListPodSandboxMetrics(ctx context.Context, req *runtimeapi.ListPodSandboxMetricsRequest) (*runtimeapi.ListPodSandboxMetricsResponse, error) {
-	resp, err := s.runtimeClient.ListPodSandboxMetrics(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListPodSandboxMetrics call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListPodSandboxMetrics(ctx, req)
 }
 
 // ListPodSandboxStats implements v1.RuntimeServiceServer.
 func (s *Server) ListPodSandboxStats(ctx context.Context, req *runtimeapi.ListPodSandboxStatsRequest) (*runtimeapi.ListPodSandboxStatsResponse, error) {
-	resp, err := s.runtimeClient.ListPodSandboxStats(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListPodSandboxStats call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListPodSandboxStats(ctx, req)
 }
 
 // PodSandboxStats implements v1.RuntimeServiceServer.
 func (s *Server) PodSandboxStats(ctx context.Context, req *runtimeapi.PodSandboxStatsRequest) (*runtimeapi.PodSandboxStatsResponse, error) {
-	resp, err := s.runtimeClient.PodSandboxStats(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy PodSandboxStats call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.PodSandboxStats(ctx, req)
 }
 
 // PortForward implements v1.RuntimeServiceServer.
 func (s *Server) PortForward(ctx context.Context, req *runtimeapi.PortForwardRequest) (*runtimeapi.PortForwardResponse, error) {
-	resp, err := s.runtimeClient.PortForward(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy PortForward call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.PortForward(ctx, req)
 }
 
 // RemoveContainer implements v1.RuntimeServiceServer.
 func (s *Server) RemoveContainer(ctx context.Context, req *runtimeapi.RemoveContainerRequest) (*runtimeapi.RemoveContainerResponse, error) {
-	resp, err := s.runtimeClient.RemoveContainer(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RemoveContainer call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.RemoveContainer(ctx, req)
 }
 
 // RemovePodSandbox implements v1.RuntimeServiceServer.
 func (s *Server) RemovePodSandbox(ctx context.Context, req *runtimeapi.RemovePodSandboxRequest) (*runtimeapi.RemovePodSandboxResponse, error) {
-	resp, err := s.runtimeClient.RemovePodSandbox(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RemovePodSandbox call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.RemovePodSandbox(ctx, req)
 }
 
 // RuntimeConfig implements v1.RuntimeServiceServer.
 func (s *Server) RuntimeConfig(ctx context.Context, req *runtimeapi.RuntimeConfigRequest) (*runtimeapi.RuntimeConfigResponse, error) {
-	resp, err := s.runtimeClient.RuntimeConfig(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RuntimeConfig call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.RuntimeConfig(ctx, req)
 }
 
 // StartContainer implements v1.RuntimeServiceServer.
 func (s *Server) StartContainer(ctx context.Context, req *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
-	resp, err := s.runtimeClient.StartContainer(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy StartContainer call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.StartContainer(ctx, req)
 }
 
 // Status implements v1.RuntimeServiceServer.
 func (s *Server) Status(ctx context.Context, req *runtimeapi.StatusRequest) (*runtimeapi.StatusResponse, error) {
-	resp, err := s.runtimeClient.Status(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy Status call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.Status(ctx, req)
 }
 
 // StopContainer implements v1.RuntimeServiceServer.
 func (s *Server) StopContainer(ctx context.Context, req *runtimeapi.StopContainerRequest) (*runtimeapi.StopContainerResponse, error) {
-	resp, err := s.runtimeClient.StopContainer(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy StopContainer call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.StopContainer(ctx, req)
 }
 
 // StopPodSandbox implements v1.RuntimeServiceServer.
 func (s *Server) StopPodSandbox(ctx context.Context, req *runtimeapi.StopPodSandboxRequest) (*runtimeapi.StopPodSandboxResponse, error) {
-	resp, err := s.runtimeClient.StopPodSandbox(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy StopPodSandbox call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.StopPodSandbox(ctx, req)
 }
 
 // UpdateContainerResources implements v1.RuntimeServiceServer.
 func (s *Server) UpdateContainerResources(ctx context.Context, req *runtimeapi.UpdateContainerResourcesRequest) (*runtimeapi.UpdateContainerResourcesResponse, error) {
-	resp, err := s.runtimeClient.UpdateContainerResources(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy UpdateContainerResources call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.UpdateContainerResources(ctx, req)
 }
 
 // UpdatePodSandboxResources implements v1.RuntimeServiceServer.
 func (s *Server) UpdatePodSandboxResources(ctx context.Context, req *runtimeapi.UpdatePodSandboxResourcesRequest) (*runtimeapi.UpdatePodSandboxResourcesResponse, error) {
-	resp, err := s.runtimeClient.UpdatePodSandboxResources(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy UpdatePodSandboxResources call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.UpdatePodSandboxResources(ctx, req)
 }
 
 // UpdateRuntimeConfig implements v1.RuntimeServiceServer.
 func (s *Server) UpdateRuntimeConfig(ctx context.Context, req *runtimeapi.UpdateRuntimeConfigRequest) (*runtimeapi.UpdateRuntimeConfigResponse, error) {
-	resp, err := s.runtimeClient.UpdateRuntimeConfig(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy UpdateRuntimeConfig call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.UpdateRuntimeConfig(ctx, req)
 }
 
 func (s *Server) GetRuntimeClient() runtimeapi.RuntimeServiceClient {
@@ -321,7 +237,8 @@ func (s *Server) Start(socketPath string) error {
 func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*runtimeapi.VersionResponse, error) {
 	resp, err := s.runtimeClient.Version(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to proxy Version call: %w", err)
+		//nolint:wrapcheck
+		return nil, err
 	}
 
 	resp.RuntimeVersion = fmt.Sprintf("%s via cri-lite (%s)", resp.GetRuntimeVersion(), version.Version)
@@ -332,112 +249,68 @@ func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*
 
 // ListContainers proxies the ListContainers call to the underlying runtime service.
 func (s *Server) ListContainers(ctx context.Context, req *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
-	resp, err := s.runtimeClient.ListContainers(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListContainers call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListContainers(ctx, req)
 }
 
 // ContainerStatus proxies the ContainerStatus call to the underlying runtime service.
 func (s *Server) ContainerStatus(ctx context.Context, req *runtimeapi.ContainerStatusRequest) (*runtimeapi.ContainerStatusResponse, error) {
-	resp, err := s.runtimeClient.ContainerStatus(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ContainerStatus call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ContainerStatus(ctx, req)
 }
 
 // ListPodSandbox proxies the ListPodSandbox call to the underlying runtime service.
 func (s *Server) ListPodSandbox(ctx context.Context, req *runtimeapi.ListPodSandboxRequest) (*runtimeapi.ListPodSandboxResponse, error) {
-	resp, err := s.runtimeClient.ListPodSandbox(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListPodSandbox call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ListPodSandbox(ctx, req)
 }
 
 // PodSandboxStatus proxies the PodSandboxStatus call to the underlying runtime service.
 func (s *Server) PodSandboxStatus(ctx context.Context, req *runtimeapi.PodSandboxStatusRequest) (*runtimeapi.PodSandboxStatusResponse, error) {
-	resp, err := s.runtimeClient.PodSandboxStatus(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy PodSandboxStatus call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.PodSandboxStatus(ctx, req)
 }
 
 // RunPodSandbox proxies the RunPodSandbox call to the underlying runtime service.
 func (s *Server) RunPodSandbox(ctx context.Context, req *runtimeapi.RunPodSandboxRequest) (*runtimeapi.RunPodSandboxResponse, error) {
-	resp, err := s.runtimeClient.RunPodSandbox(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy RunPodSandbox call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.RunPodSandbox(ctx, req)
 }
 
 // ReopenContainerLog proxies the ReopenContainerLog call to the underlying runtime service.
 func (s *Server) ReopenContainerLog(ctx context.Context, req *runtimeapi.ReopenContainerLogRequest) (*runtimeapi.ReopenContainerLogResponse, error) {
-	resp, err := s.runtimeClient.ReopenContainerLog(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ReopenContainerLog call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.ReopenContainerLog(ctx, req)
 }
 
 // Attach proxies the Attach call to the underlying runtime service.
 func (s *Server) Attach(ctx context.Context, req *runtimeapi.AttachRequest) (*runtimeapi.AttachResponse, error) {
-	resp, err := s.runtimeClient.Attach(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy Attach call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.runtimeClient.Attach(ctx, req)
 }
 
 // ListImages proxies the ListImages call to the underlying image service.
 func (s *Server) ListImages(ctx context.Context, req *runtimeapi.ListImagesRequest) (*runtimeapi.ListImagesResponse, error) {
-	resp, err := s.imageClient.ListImages(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ListImages call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.imageClient.ListImages(ctx, req)
 }
 
 // ImageStatus proxies the ImageStatus call to the underlying image service.
 func (s *Server) ImageStatus(ctx context.Context, req *runtimeapi.ImageStatusRequest) (*runtimeapi.ImageStatusResponse, error) {
-	resp, err := s.imageClient.ImageStatus(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ImageStatus call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.imageClient.ImageStatus(ctx, req)
 }
 
 // ImageFsInfo proxies the ImageFsInfo call to the underlying image service.
 func (s *Server) ImageFsInfo(ctx context.Context, req *runtimeapi.ImageFsInfoRequest) (*runtimeapi.ImageFsInfoResponse, error) {
-	resp, err := s.imageClient.ImageFsInfo(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy ImageFsInfo call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.imageClient.ImageFsInfo(ctx, req)
 }
 
 // PullImage proxies the PullImage call to the underlying image service.
 func (s *Server) PullImage(ctx context.Context, req *runtimeapi.PullImageRequest) (*runtimeapi.PullImageResponse, error) {
-	resp, err := s.imageClient.PullImage(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to proxy PullImage call: %w", err)
-	}
-
-	return resp, nil
+	//nolint:wrapcheck
+	return s.imageClient.PullImage(ctx, req)
 }
 
 func (s *Server) policyNames() string {
