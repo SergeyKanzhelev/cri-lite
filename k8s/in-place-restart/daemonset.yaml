@@ -32,9 +32,10 @@ spec:
             image-endpoint: $(IMAGE_ENDPOINT)
             endpoints:
             - endpoint: /run/cri-lite/dynamic-podscope/cri-lite.sock
-              policies:
-              - PodScoped
-              pod-sandbox-from-caller-pid: true
+              policy:
+                name: PodScoped
+                attributes:
+                  pod-sandbox-from-caller-pid: true
         volumeMounts:
         - name: cri-lite-config
           mountPath: /config
@@ -42,7 +43,7 @@ spec:
           mountPath: /run/cri-lite
       containers:
       - name: cri-lite
-        image: us-central1-docker.pkg.dev/skanzhelev-gke-dev/cri-lite/cri-lite@sha256:db9d249ed46f55f1c4a39ddeccf5ff1846270098a27854695d275a904808a3fe
+        image: us-central1-docker.pkg.dev/skanzhelev-gke-dev/cri-lite/cri-lite@sha256:74382e422123dfde241b7e93575741cfac7d4857a61f61cb939491e3353d3076
         command: ["/cri-lite", "--config", "/config/config.yaml"]
         securityContext:
           privileged: true

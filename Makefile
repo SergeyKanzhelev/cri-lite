@@ -60,5 +60,5 @@ IMAGE_NAME ?= us-central1-docker.pkg.dev/skanzhelev-gke-dev/cri-lite/cri-lite
 
 push:
 	@echo "Building and pushing docker image..."
-	@docker build -t $(IMAGE_NAME):$(VERSION) k8s/
+	@docker build -t $(IMAGE_NAME):$(VERSION) -f k8s/Dockerfile .
 	@docker push $(IMAGE_NAME):$(VERSION)

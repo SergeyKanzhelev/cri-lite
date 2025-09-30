@@ -6,9 +6,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+RUN apk add --no-cache git
+
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X cri-lite/pkg/version.Version=$(shell git describe --tags --always --dirty)" -o /cri-lite .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X cri-lite/pkg/version.Version=$(git describe --tags --always --dirty)" -o /cri-lite .
 
 # Final stage
 FROM alpine:3.20
