@@ -6,6 +6,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 
 	"cri-lite/pkg/policy"
@@ -38,6 +40,20 @@ var _ = Describe("Image Management Policy", func() {
 			By("calling a runtime method")
 			_, err = client.Version(ctx, &runtimeapi.VersionRequest{})
 			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("with stream interceptor", func() {
+		It("should deny GetContainerEvents", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			stream, err := client.GetContainerEvents(ctx, &runtimeapi.GetEventsRequest{})
+			Expect(err).NotTo(HaveOccurred())
+			_, err = stream.Recv()
+			Expect(err).To(HaveOccurred())
+			st, ok := status.FromError(err)
+			Expect(ok).To(BeTrue())
+			Expect(st.Code()).To(Equal(codes.PermissionDenied))
 		})
 	})
 })
