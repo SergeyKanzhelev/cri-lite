@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restart-policy-rules-demo
+spec:
+  restartPolicy: Never
+  containers:
+  - name: main-app
+    image: busybox:1.28
+    command: ["sh", "-c", "echo 'Main application container started.'; sleep 15; exit 108"]
+    restartPolicy: Never
+    restartPolicyRules:
+    - action: Restart
+      exitCodes:
+        operator: In
+        values: [108]
