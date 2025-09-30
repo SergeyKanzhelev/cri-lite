@@ -3,6 +3,8 @@ package proxy_test
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -35,6 +37,20 @@ func (s *fakeRuntimeService) Version(ctx context.Context, req *runtimeapi.Versio
 		RuntimeVersion:    "1.0.0",
 		RuntimeApiVersion: "v1alpha2",
 	}, nil
+}
+
+func (s *fakeRuntimeService) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream runtimeapi.RuntimeService_GetContainerEventsServer) error {
+	events := []*runtimeapi.ContainerEventResponse{
+		{ContainerId: "container1", ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_CREATED_EVENT},
+		{ContainerId: "container2", ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_STARTED_EVENT},
+	}
+	for _, event := range events {
+		if err := stream.Send(event); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func TestVersion(t *testing.T) {
@@ -341,5 +357,103 @@ func TestMetadataPropagation(t *testing.T) {
 	//}
 	if len(fakeRuntime.md.Get("baggage")) == 0 || fakeRuntime.md.Get("baggage")[0] != "my-baggage" {
 		t.Errorf("baggage not propagated, got: %v", fakeRuntime.md.Get("baggage"))
+	}
+}
+
+func TestGetContainerEvents(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	// 1. Backend setup
+	backendLis := bufconn.Listen(bufSize)
+	backendGrpcServer := grpc.NewServer()
+	fakeRuntime := &fakeRuntimeService{}
+	runtimeapi.RegisterRuntimeServiceServer(backendGrpcServer, fakeRuntime)
+
+	go func() {
+		if err := backendGrpcServer.Serve(backendLis); err != nil {
+			t.Errorf("Backend server exited with error: %v", err)
+		}
+	}()
+
+	defer backendGrpcServer.Stop()
+
+	// 2. Proxy setup
+	backendConn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return backendLis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial backend bufnet: %v", err)
+	}
+
+	defer func() {
+		if err := backendConn.Close(); err != nil {
+			t.Logf("Failed to close backend connection: %v", err)
+		}
+	}()
+
+	proxyServer := &proxy.Server{}
+	p := policy.NewReadOnlyPolicy()
+	proxyServer.SetPolicy(p)
+	proxyServer.SetRuntimeClient(runtimeapi.NewRuntimeServiceClient(backendConn))
+	proxyServer.SetImageClient(runtimeapi.NewImageServiceClient(backendConn))
+
+	proxyLis := bufconn.Listen(bufSize)
+	proxyGrpcServer := grpc.NewServer(grpc.UnaryInterceptor(p.UnaryInterceptor()), grpc.StreamInterceptor(p.StreamInterceptor()))
+	runtimeapi.RegisterRuntimeServiceServer(proxyGrpcServer, proxyServer)
+
+	go func() {
+		if err := proxyGrpcServer.Serve(proxyLis); err != nil {
+			t.Errorf("Proxy server exited with error: %v", err)
+		}
+	}()
+
+	defer proxyGrpcServer.Stop()
+
+	// 3. Client setup
+	proxyConn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		return proxyLis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial proxy bufnet: %v", err)
+	}
+
+	defer func() {
+		if err := proxyConn.Close(); err != nil {
+			t.Logf("Failed to close proxy connection: %v", err)
+		}
+	}()
+
+	runtimeClient := runtimeapi.NewRuntimeServiceClient(proxyConn)
+
+	// 4. The actual test
+	stream, err := runtimeClient.GetContainerEvents(ctx, &runtimeapi.GetEventsRequest{})
+	if err != nil {
+		t.Fatalf("GetContainerEvents failed: %v", err)
+	}
+
+	expectedEvents := []*runtimeapi.ContainerEventResponse{
+		{ContainerId: "container1", ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_CREATED_EVENT},
+		{ContainerId: "container2", ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_STARTED_EVENT},
+	}
+
+	for _, expected := range expectedEvents {
+		event, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("Recv failed: %v", err)
+		}
+
+		if event.GetContainerId() != expected.GetContainerId() {
+			t.Errorf("expected container id %s, got %s", expected.GetContainerId(), event.GetContainerId())
+		}
+
+		if event.GetContainerEventType() != expected.GetContainerEventType() {
+			t.Errorf("expected event type %v, got %v", expected.GetContainerEventType(), event.GetContainerEventType())
+		}
+	}
+
+	_, err = stream.Recv()
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("expected EOF, got %v", err)
 	}
 }
