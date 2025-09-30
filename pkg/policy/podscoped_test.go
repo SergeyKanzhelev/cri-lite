@@ -103,9 +103,10 @@ var _ = Describe("PodScoped Policy", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			By("calling an image method (allowed)")
+			By("calling an image method (denied)")
 			_, err := imageClient.ListImages(ctx, &runtimeapi.ListImagesRequest{})
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
 
 			By("calling a non-scoped runtime method (allowed)")
 			_, err = runtimeClient.Version(ctx, &runtimeapi.VersionRequest{})
@@ -121,6 +122,21 @@ var _ = Describe("PodScoped Policy", func() {
 			_, err = runtimeClient.PortForward(ctx, &runtimeapi.PortForwardRequest{
 				PodSandboxId: otherPodSandboxID,
 			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
+		})
+
+		It("should deny all image service calls", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			By("calling ListImages (denied)")
+			_, err := imageClient.ListImages(ctx, &runtimeapi.ListImagesRequest{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
+
+			By("calling PullImage (denied)")
+			_, err = imageClient.PullImage(ctx, &runtimeapi.PullImageRequest{Image: &runtimeapi.ImageSpec{Image: "busybox"}})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("method not allowed by policy"))
 		})

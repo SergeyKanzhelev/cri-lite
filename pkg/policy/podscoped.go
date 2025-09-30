@@ -60,8 +60,9 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 			handler grpc.UnaryHandler,
 		) (interface{}, error) {
 			logger := klog.FromContext(ctx)
+
 			if strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
-				return handler(ctx, req)
+				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
 			}
 
 			if !strings.HasPrefix(info.FullMethod, "/runtime.v1.RuntimeService/") {
