@@ -23,6 +23,8 @@ type Policy interface {
 	Name() string
 	// UnaryInterceptor returns a gRPC unary server interceptor.
 	UnaryInterceptor() grpc.UnaryServerInterceptor
+	// StreamInterceptor returns a gRPC stream server interceptor.
+	StreamInterceptor() grpc.StreamServerInterceptor
 }
 
 // Config is the configuration for a policy.
@@ -61,8 +63,11 @@ func loggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnarySe
 	resp, err := handler(ctx, req)
 	if err != nil {
 		logger.V(4).Error(err, "request denied by policy")
+
 		return nil, err
 	}
+
 	logger.V(4).Info("request allowed by policy")
+
 	return resp, nil
 }

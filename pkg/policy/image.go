@@ -47,8 +47,21 @@ func (p *imageManagementPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 			return handler(ctx, req)
 		}
+
 		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return loggingInterceptor(ctx, req, info, handler)
 		})
+	}
+}
+
+// StreamInterceptor implements the Policy interface.
+func (p *imageManagementPolicy) StreamInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		return status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
 	}
 }

@@ -48,6 +48,7 @@ func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 				"/runtime.v1.RuntimeService/ListContainerStats":  true,
 				"/runtime.v1.RuntimeService/PodSandboxStats":     true,
 				"/runtime.v1.RuntimeService/ListPodSandboxStats": true,
+				"/runtime.v1.RuntimeService/GetContainerEvents":  true,
 				"/runtime.v1.ImageService/ListImages":            true,
 				"/runtime.v1.ImageService/ImageStatus":           true,
 				"/runtime.v1.ImageService/ImageFsInfo":           true,
@@ -59,8 +60,30 @@ func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 			return handler(ctx, req)
 		}
+
 		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return loggingInterceptor(ctx, req, info, handler)
 		})
+	}
+}
+
+// StreamInterceptor implements the Policy interface.
+func (p *readOnlyPolicy) StreamInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		// List of allowed read-only streaming methods.
+		allowedMethods := map[string]bool{
+			"/runtime.v1.RuntimeService/GetContainerEvents": true,
+		}
+
+		if !allowedMethods[info.FullMethod] {
+			return status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
+		}
+
+		return handler(srv, ss)
 	}
 }

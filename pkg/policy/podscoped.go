@@ -114,8 +114,50 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 			return resp, nil
 		}
+
 		return interceptor(ctx, req, info, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return loggingInterceptor(ctx, req, info, handler)
+		})
+	}
+}
+
+// StreamInterceptor implements the Policy interface.
+func (p *podScopedPolicy) StreamInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		if info.FullMethod != "/runtime.v1.RuntimeService/GetContainerEvents" {
+			return handler(srv, ss)
+		}
+
+		podSandboxID := p.podSandboxID
+		if p.podSandboxFromCallerPID {
+			peerInfo, isPeer := peer.FromContext(ss.Context())
+			if !isPeer {
+				return status.Errorf(codes.InvalidArgument, "failed to get peer from context")
+			}
+
+			authInfo, ok := peerInfo.AuthInfo.(interface{ GetPID() int32 })
+			if !ok {
+				return status.Errorf(codes.InvalidArgument, "failed to get auth info from context")
+			}
+
+			var err error
+
+			podSandboxID, err = p.getPodSandboxIDFromPID(ss.Context(), authInfo.GetPID())
+			if err != nil {
+				return status.Errorf(codes.Internal, "failed to get pod sandbox ID from PID: %v", err)
+			}
+		}
+
+		return handler(srv, &filteredStream{
+			ServerStream:  ss,
+			podSandboxID:  podSandboxID,
+			policy:        p,
+			containerToPS: make(map[string]string),
 		})
 	}
 }
@@ -294,4 +336,38 @@ func (p *podScopedPolicy) verifyListPodSandboxStatsRequest(r *runtimeapi.ListPod
 	}
 
 	return nil
+}
+
+type filteredStream struct {
+	grpc.ServerStream
+
+	podSandboxID  string
+	policy        *podScopedPolicy
+	containerToPS map[string]string
+}
+
+func (s *filteredStream) SendMsg(m interface{}) error {
+	if event, ok := m.(*runtimeapi.ContainerEventResponse); ok {
+		podSandboxID, ok := s.containerToPS[event.GetContainerId()]
+		if !ok {
+			var err error
+
+			podSandboxID, err = s.policy.getPodSandboxIDFromContainerID(s.Context(), event.GetContainerId())
+			if err != nil {
+				// If we fail to get the pod sandbox ID, we assume the container does not exist and we should not send the event.
+				// This can happen if the container was removed before we could get its status.
+				return err
+			}
+
+			s.containerToPS[event.GetContainerId()] = podSandboxID
+		}
+
+		if podSandboxID == s.podSandboxID {
+			return s.ServerStream.SendMsg(m)
+		}
+
+		return nil
+	}
+
+	return s.ServerStream.SendMsg(m)
 }

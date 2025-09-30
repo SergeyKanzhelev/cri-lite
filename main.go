@@ -3,7 +3,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"strconv"
 
 	"k8s.io/klog/v2"
 
@@ -40,7 +40,7 @@ func main() {
 	// The command-line flag has precedence over the config file.
 	vFlag := flag.Lookup("v")
 	if vFlag.Value.String() == "0" {
-		_ = vFlag.Value.Set(fmt.Sprintf("%d", cfg.Logging.Verbosity))
+		_ = vFlag.Value.Set(strconv.Itoa(cfg.Logging.Verbosity))
 	}
 
 	klog.Infof("Configuration loaded successfully from %s", *configFile)
