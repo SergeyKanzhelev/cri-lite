@@ -28,3 +28,7 @@ Also I will use `HACK:` convention when I implement the placeholder code that is
 Some tests require `sudo` to run. never attempt to run tests under the `test/e2e` directly or using `make test-e2e` commands as they will not succeed in AI sandbox. Ask user to run them and post logs back.
 
 Tests located in the `test/` directory are exclusively for end-to-end scenarios that interact with a "real" container runtime. Unit tests that utilize fake runtimes or mock sockets should be placed within their respective packages (e.g., `pkg/policy/readonly_test.go`, `pkg/proxy/proxy_test.go`).
+
+## Vendored Files
+
+Never modify files within the `vendor/` directory. Changes requiring modifications to vendored files indicate a wrong direction and should be re-evaluated. If a change requires a modification to a vendored file, it should be reverted, and an alternative approach should be sought.

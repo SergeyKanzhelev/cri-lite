@@ -2,6 +2,7 @@ package policy_test
 
 import (
 	"context"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -251,6 +252,29 @@ var _ = Describe("PodScoped Policy", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.GetContainers()).To(HaveLen(1))
 			Expect(resp.GetContainers()[0].GetId()).To(Equal(containerID1))
+		})
+
+		It("should filter GetContainerEvents to only return events for the specific Pod", func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			// Set up fake events in the mock server
+			mock.SetEmittedEvents([]*runtimeapi.ContainerEventResponse{
+				{ContainerId: containerID1, ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_CREATED_EVENT},
+				{ContainerId: containerID2, ContainerEventType: runtimeapi.ContainerEventType_CONTAINER_STARTED_EVENT},
+			})
+
+			stream, err := runtimeClient.GetContainerEvents(ctx, &runtimeapi.GetEventsRequest{})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Expect only the event for podSandboxID
+			event, err := stream.Recv()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(event.GetContainerId()).To(Equal(containerID1))
+
+			// Expect no more events
+			_, err = stream.Recv()
+			Expect(err).To(MatchError(io.EOF))
 		})
 	})
 })

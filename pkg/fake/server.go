@@ -18,6 +18,7 @@ type Server struct {
 	containers      []*runtimeapi.Container
 	stats           []*runtimeapi.ContainerStats
 	podSandboxStats []*runtimeapi.PodSandboxStats
+	emittedEvents   []*runtimeapi.ContainerEventResponse
 }
 
 // NewServer creates a new fake CRI server.
@@ -65,6 +66,11 @@ func (s *Server) SetContainerStats(stats []*runtimeapi.ContainerStats) {
 // SetPodSandboxStats sets the list of pod sandbox stats for the fake server.
 func (s *Server) SetPodSandboxStats(stats []*runtimeapi.PodSandboxStats) {
 	s.podSandboxStats = stats
+}
+
+// SetEmittedEvents sets the list of container events for the fake server.
+func (s *Server) SetEmittedEvents(events []*runtimeapi.ContainerEventResponse) {
+	s.emittedEvents = events
 }
 
 // Version returns a fake version.
@@ -220,6 +226,17 @@ func (s *Server) ListPodSandboxStats(_ context.Context, req *runtimeapi.ListPodS
 	return &runtimeapi.ListPodSandboxStatsResponse{
 		Stats: filtered,
 	}, nil
+}
+
+// GetContainerEvents sends fake container events.
+func (s *Server) GetContainerEvents(_ *runtimeapi.GetEventsRequest, stream runtimeapi.RuntimeService_GetContainerEventsServer) error {
+	for _, event := range s.emittedEvents {
+		if err := stream.Send(event); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ListPodSandbox returns a fake list of pod sandboxes.

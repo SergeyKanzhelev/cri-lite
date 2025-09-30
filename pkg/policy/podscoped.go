@@ -154,10 +154,9 @@ func (p *podScopedPolicy) StreamInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		return handler(srv, &filteredStream{
-			ServerStream:  ss,
-			podSandboxID:  podSandboxID,
-			policy:        p,
-			containerToPS: make(map[string]string),
+			ServerStream: ss,
+			podSandboxID: podSandboxID,
+			policy:       p,
 		})
 	}
 }
@@ -341,25 +340,20 @@ func (p *podScopedPolicy) verifyListPodSandboxStatsRequest(r *runtimeapi.ListPod
 type filteredStream struct {
 	grpc.ServerStream
 
-	podSandboxID  string
-	policy        *podScopedPolicy
-	containerToPS map[string]string
+	podSandboxID string
+	policy       *podScopedPolicy
 }
 
 func (s *filteredStream) SendMsg(m interface{}) error {
 	if event, ok := m.(*runtimeapi.ContainerEventResponse); ok {
-		podSandboxID, ok := s.containerToPS[event.GetContainerId()]
-		if !ok {
-			var err error
+		var err error
 
-			podSandboxID, err = s.policy.getPodSandboxIDFromContainerID(s.Context(), event.GetContainerId())
-			if err != nil {
-				// If we fail to get the pod sandbox ID, we assume the container does not exist and we should not send the event.
-				// This can happen if the container was removed before we could get its status.
-				return err
-			}
-
-			s.containerToPS[event.GetContainerId()] = podSandboxID
+		//TODO: cache container to pod sandbox mapping in future, account for containers being removed
+		podSandboxID, err := s.policy.getPodSandboxIDFromContainerID(s.Context(), event.GetContainerId())
+		if err != nil {
+			// If we fail to get the pod sandbox ID, we assume the container does not exist and we should not send the event.
+			// This can happen if the container was removed before we could get its status.
+			return err
 		}
 
 		if podSandboxID == s.podSandboxID {

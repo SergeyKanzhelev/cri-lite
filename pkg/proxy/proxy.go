@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 
@@ -480,8 +479,6 @@ func (s *Server) Stop() {
 // Version proxies the Version call to the underlying runtime service.
 func (s *Server) Version(ctx context.Context, req *runtimeapi.VersionRequest) (*runtimeapi.VersionResponse, error) {
 	logger := klog.FromContext(ctx)
-
-	log.Default().Println("Version called")
 
 	resp, err := s.runtimeClient.Version(forwardedContext(ctx), req)
 	if err != nil {
