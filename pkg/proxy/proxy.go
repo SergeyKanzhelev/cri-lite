@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,6 +19,17 @@ import (
 	"cri-lite/pkg/policy"
 	"cri-lite/pkg/version"
 )
+
+func userAgentClientInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.New(nil)
+	}
+	if len(md.Get("user-agent")) == 0 {
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Join(md, metadata.Pairs("user-agent", "cri-lite/"+version.Version)))
+	}
+	return invoker(ctx, method, req, reply, cc, opts...)
+}
 
 func forwardedContext(ctx context.Context) context.Context {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -120,13 +132,28 @@ func (s *Server) ExecSync(ctx context.Context, req *runtimeapi.ExecSyncRequest) 
 	return resp, nil
 }
 
-var errGetContainerEventsNotImplemented = errors.New("GetContainerEvents not implemented")
-
-// GetContainerEvents implements v1.RuntimeServiceServer.
-func (s *Server) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream grpc.ServerStreamingServer[runtimeapi.ContainerEventResponse]) error {
+func (s *Server) GetContainerEvents(req *runtimeapi.GetEventsRequest, stream runtimeapi.RuntimeService_GetContainerEventsServer) error {
 	logger := klog.FromContext(stream.Context())
-	logger.Info("GetContainerEvents not implemented")
-	return errGetContainerEventsNotImplemented
+	clientStream, err := s.runtimeClient.GetContainerEvents(forwardedContext(stream.Context()), req)
+	if err != nil {
+		logger.Error(err, "failed to get container events")
+		return fmt.Errorf("failed to get container events: %w", err)
+	}
+	for {
+		event, err := clientStream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+			logger.Error(err, "failed to receive container event")
+			return fmt.Errorf("failed to receive container event: %w", err)
+		}
+		if err := stream.Send(event); err != nil {
+			logger.Error(err, "failed to send container event")
+			return fmt.Errorf("failed to send container event: %w", err)
+		}
+	}
+	return nil
 }
 
 // ListContainerStats implements v1.RuntimeServiceServer.
