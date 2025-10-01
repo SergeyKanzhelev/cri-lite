@@ -1,0 +1,35 @@
+# policies/readonly.yaml
+# This policy grants access to read-only operations from both the
+# RuntimeService and ImageService. It denies any calls that would modify
+# the state of the system.
+
+rules:
+  # RuntimeService Read-Only Methods
+  - method: /runtime.v1.RuntimeService/Version
+    action: allow
+  - method: /runtime.v1.RuntimeService/ListContainers
+    action: allow
+  - method: /runtime.v1.RuntimeService/ContainerStatus
+    action: allow
+  - method: /runtime.v1.RuntimeService/PodSandboxStatus
+    action: allow
+  - method: /runtime.v1.RuntimeService/ListPodSandbox
+    action: allow
+  - method: /runtime.v1.RuntimeService/ContainerStats
+    action: allow
+  - method: /runtime.v1.RuntimeService/ListContainerStats
+    action: allow
+  - method: /runtime.v1.RuntimeService/PodSandboxStats
+    action: allow
+  - method: /runtime.v1.RuntimeService/ListPodSandboxStats
+    action: allow
+  - method: /runtime.v1.RuntimeService/GetContainerEvents
+    action: allow
+
+  # ImageService Read-Only Methods
+  - method: /runtime.v1.ImageService/ListImages
+    action: allow
+  - method: /runtime.v1.ImageService/ImageStatus
+    action: allow
+  - method: /runtime.v1.ImageService/ImageFsInfo
+    action: allow

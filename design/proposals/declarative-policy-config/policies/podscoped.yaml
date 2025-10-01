@@ -1,0 +1,134 @@
+# policies/podscoped.yaml
+# This policy restricts RuntimeService operations to a single PodSandbox,
+# determined dynamically from the caller's PID. It denies all ImageService calls.
+
+rules:
+  # Deny all ImageService methods explicitly.
+  - method: /runtime.v1.ImageService/*
+    action: deny
+
+  # Allow Version check for compatibility.
+  - method: /runtime.v1.RuntimeService/Version
+    action: allow
+
+  # Methods that operate on a container and need ownership verification.
+  - method: /runtime.v1.RuntimeService/StartContainer
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/StopContainer
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/RemoveContainer
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ContainerStatus
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/UpdateContainerResources
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ExecSync
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/Attach
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ContainerStats
+    action: allow
+    conditions:
+      - field: ContainerId
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+
+  # Methods that operate on a PodSandbox and need ownership verification.
+  - method: /runtime.v1.RuntimeService/CreateContainer
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/StopPodSandbox
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/RemovePodSandbox
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/PodSandboxStatus
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/UpdatePodSandbox
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/PortForward
+    action: allow
+    conditions:
+      - field: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+
+  # List methods that need their responses filtered.
+  - method: /runtime.v1.RuntimeService/ListContainers
+    action: allow
+    filters:
+      - field: Containers
+        filterField: PodSandboxId
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ListPodSandbox
+    action: allow
+    filters:
+      - field: Items
+        filterField: Id
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ListContainerStats
+    action: allow
+    filters:
+      - field: Stats
+        filterField: Attributes.Id
+        operator: belongsToPod
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/ListPodSandboxStats
+    action: allow
+    filters:
+      - field: Stats
+        filterField: Attributes.Id
+        operator: equals
+        source: podSandboxIdFromPID
+  - method: /runtime.v1.RuntimeService/GetContainerEvents
+    action: allow
+    # Response filtering for streaming RPCs like GetContainerEvents would be handled
+    # by the policy engine internally, ensuring only events for the caller's pod are sent.

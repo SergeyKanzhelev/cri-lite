@@ -1,0 +1,13 @@
+# policies/image_management.yaml
+# This policy grants full access to the ImageService API, allowing users
+# to pull, list, and remove images. It denies all access to the RuntimeService
+# API, except for the Version call.
+
+rules:
+  # Allow Version check for compatibility.
+  - method: /runtime.v1.RuntimeService/Version
+    action: allow
+
+  # Allow all ImageService methods.
+  - method: /runtime.v1.ImageService/*
+    action: allow
