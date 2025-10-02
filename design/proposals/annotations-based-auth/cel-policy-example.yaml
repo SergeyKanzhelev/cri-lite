@@ -1,0 +1,40 @@
+# This manifest defines a CEL-based admission policy that restricts the usage of
+# the 'cri-lite.io/policy' annotation to Pods within a specific namespace.
+# This is a lightweight, built-in alternative to a full validating admission webhook.
+
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: cri-lite-annotation-namespace-policy
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   [""]
+      apiVersions: ["v1"]
+      operations:  ["CREATE", "UPDATE"]
+      resources:   ["pods"]
+  validations:
+    - expression: >
+        !('cri-lite.io/policy' in object.metadata.annotations) ||
+        object.metadata.namespace == 'cri-lite-enabled-ns'
+      message: "The 'cri-lite.io/policy' annotation can only be set for Pods in the 'cri-lite-enabled-ns' namespace."
+      # To allow multiple namespaces, you could change the expression to:
+      # !('policy.cri-lite.io/allowed' in object.metadata.annotations) ||
+      # object.metadata.namespace in ['ns-a', 'ns-b', 'ns-c']
+
+---
+# This binding applies the above policy to the entire cluster.
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: cri-lite-annotation-namespace-policy-binding
+spec:
+  policyName: "cri-lite-annotation-namespace-policy"
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+      - key: "kubernetes.io/metadata.name"
+        operator: "NotIn"
+        values: ["kube-system"] # Example: Exclude the kube-system namespace
