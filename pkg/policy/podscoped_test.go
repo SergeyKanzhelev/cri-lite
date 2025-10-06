@@ -112,6 +112,10 @@ var _ = Describe("PodScoped Policy", func() {
 			_, err = runtimeClient.Version(ctx, &runtimeapi.VersionRequest{})
 			Expect(err).NotTo(HaveOccurred())
 
+			By("calling ImageFsInfo (allowed)")
+			_, err = imageClient.ImageFsInfo(ctx, &runtimeapi.ImageFsInfoRequest{})
+			Expect(err).NotTo(HaveOccurred())
+
 			By("calling a correctly scoped runtime method (allowed)")
 			_, err = runtimeClient.PodSandboxStatus(ctx, &runtimeapi.PodSandboxStatusRequest{
 				PodSandboxId: podSandboxID,

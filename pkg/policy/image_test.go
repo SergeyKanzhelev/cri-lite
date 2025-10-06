@@ -40,6 +40,10 @@ var _ = Describe("Image Management Policy", func() {
 			By("calling a runtime method")
 			_, err = client.Version(ctx, &runtimeapi.VersionRequest{})
 			Expect(err).NotTo(HaveOccurred())
+
+			By("calling ImageFsInfo")
+			_, err = imageClient.ImageFsInfo(ctx, &runtimeapi.ImageFsInfoRequest{})
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 

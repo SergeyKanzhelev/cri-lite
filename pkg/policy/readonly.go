@@ -51,7 +51,8 @@ func (p *readOnlyPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 				"/runtime.v1.RuntimeService/GetContainerEvents":  true,
 				"/runtime.v1.ImageService/ListImages":            true,
 				"/runtime.v1.ImageService/ImageStatus":           true,
-				"/runtime.v1.ImageService/ImageFsInfo":           true,
+				// ImageFsInfo is used by crictl for CRI connectivity checks.
+				"/runtime.v1.ImageService/ImageFsInfo": true,
 			}
 
 			if !allowedMethods[info.FullMethod] {

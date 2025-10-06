@@ -40,6 +40,10 @@ func (p *imageManagementPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 			if info.FullMethod == "/runtime.v1.RuntimeService/Version" {
 				return handler(ctx, req)
 			}
+			// ImageFsInfo is used by crictl for CRI connectivity checks.
+			if info.FullMethod == "/runtime.v1.ImageService/ImageFsInfo" {
+				return handler(ctx, req)
+			}
 
 			if !strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
 				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)

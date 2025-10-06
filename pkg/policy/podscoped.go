@@ -61,6 +61,11 @@ func (p *podScopedPolicy) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		) (interface{}, error) {
 			logger := klog.FromContext(ctx)
 
+			// ImageFsInfo is used by crictl for CRI connectivity checks.
+			if info.FullMethod == "/runtime.v1.ImageService/ImageFsInfo" {
+				return handler(ctx, req)
+			}
+
 			if strings.HasPrefix(info.FullMethod, "/runtime.v1.ImageService/") {
 				return nil, status.Errorf(codes.PermissionDenied, "%s: %s", ErrMethodNotAllowed, info.FullMethod)
 			}
