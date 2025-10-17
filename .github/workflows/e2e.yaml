@@ -59,7 +59,8 @@ jobs:
     - name: Run e2e tests
       run: |
         BDIR="/var/lib/containerd-critest"
-        sudo -E PATH=$PATH /usr/local/bin/containerd -a ${BDIR}/c.sock -root ${BDIR}/root -state ${BDIR}/state -log-level debug &> ${BDIR}/containerd-cri.log &
+        sudo touch ${BDIR}/containerd-cri.log
+        sudo -E PATH=$PATH /usr/local/bin/containerd -a ${BDIR}/c.sock -root ${BDIR}/root -state ${BDIR}/state -log-level debug >> ${BDIR}/containerd-cri.log 2>&1 &
 
         while ! grep -q 'containerd successfully booted' ${BDIR}/containerd-cri.log; do
             sleep 1
