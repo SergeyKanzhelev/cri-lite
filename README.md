@@ -1,5 +1,6 @@
 # cri-lite (The CRI Proxy) - Providing a Limited Interface Through Enforcement
 
+
 ## Overview
 
 cri-lite is a proxy for the Kubernetes Container Runtime Interface (CRI) that allows for lower privilege access to a subset of the CRI API. In a standard Kubernetes environment, granting access to the CRI API is equivalent to granting administrative privileges on the node, as it allows for unrestricted control over containers and sandboxes. This level of access is often too permissive and poses a significant security risk.
