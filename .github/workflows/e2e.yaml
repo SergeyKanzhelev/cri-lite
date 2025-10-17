@@ -46,7 +46,7 @@ jobs:
       run: |
         BDIR="/var/lib/containerd-critest"
         sudo mkdir -p ${BDIR}/{root,state}
-        sudo bash -c 'cat > ${BDIR}/config.toml <<EOF
+        cat <<EOF | sudo tee ${BDIR}/config.toml
         version = 2
         [plugins."io.containerd.grpc.v1.cri"]
           sandbox_image = "k8s.gcr.io/pause:3.9"
@@ -55,7 +55,7 @@ jobs:
             default_runtime_name = "runc"
             [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
               runtime_type = "io.containerd.runc.v2"
-        EOF'
+        EOF
 
     - name: Run e2e tests
       run: |
