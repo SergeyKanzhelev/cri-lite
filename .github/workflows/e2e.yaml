@@ -41,9 +41,30 @@ jobs:
       run: |
         sudo -E PATH=$PATH script/setup/install-cni $(grep containernetworking/plugins go.mod | awk '{print $2}')
 
+    - name: Configure containerd
+      run: |
+        BDIR="/var/lib/containerd-critest"
+        sudo mkdir -p ${BDIR}/{root,state}
+        sudo bash -c 'cat > ${BDIR}/config.toml <<EOF
+        version = 2
+        [plugins."io.containerd.grpc.v1.cri"]
+          sandbox_image = "k8s.gcr.io/pause:3.9"
+          [plugins."io.containerd.grpc.v1.cri".containerd]
+            snapshotter = "overlayfs"
+            default_runtime_name = "runc"
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+              runtime_type = "io.containerd.runc.v2"
+        EOF'
+
     - name: Run e2e tests
       run: |
-        sudo containerd &
-        sleep 5
-        sudo -E PATH=$PATH make test-e2e
+        BDIR="/var/lib/containerd-critest"
+        sudo -E PATH=$PATH /usr/local/bin/containerd -a ${BDIR}/c.sock -root ${BDIR}/root -state ${BDIR}/state -log-level debug &> ${BDIR}/containerd-cri.log &
+
+        while ! grep -q 'containerd successfully booted' ${BDIR}/containerd-cri.log; do
+            sleep 1
+        done
+
+        sudo -E PATH=$PATH make test-e2e --runtime-endpoint=unix:///${BDIR}/c.sock
         sudo pkill containerd
+        sudo rm -rf ${BDIR}
