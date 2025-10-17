@@ -32,3 +32,7 @@ Tests located in the `test/` directory are exclusively for end-to-end scenarios 
 ## Vendored Files
 
 Never modify files within the `vendor/` directory. Changes requiring modifications to vendored files indicate a wrong direction and should be re-evaluated. If a change requires a modification to a vendored file, it should be reverted, and an alternative approach should be sought.
+
+## Continuous Integration
+
+This repository is hosted on GitHub and uses GitHub Actions for continuous integration. The workflow definitions are located in the `.github/workflows` directory. Any changes to the build, test, or linting process should be reflected in these workflow files.
