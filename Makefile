@@ -37,7 +37,9 @@ test:
 	@echo "Running tests..."
 	@go test -v ./pkg/...
 
-test-e2e:
+export RUNTIME_ENDPOINT ?= unix:///run/containerd/containerd.sock
+
+test-e2e: crictl
 	@echo "Running E2E tests..."
 	sudo -E go test -v ./test/...
 

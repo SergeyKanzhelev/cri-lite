@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +15,8 @@ import (
 
 	"cri-lite/test/framework"
 )
+
+var runtimeEndpoint = flag.String("runtime-endpoint", os.Getenv("RUNTIME_ENDPOINT"), "CRI runtime endpoint")
 
 func TestE2E(t *testing.T) {
 	t.Parallel()
@@ -33,8 +36,12 @@ var _ = Describe("cri-lite E2E", func() {
 			Skip("Skipping E2E test: must be run with sudo")
 		}
 
+		if *runtimeEndpoint == "" {
+			Fail("runtime-endpoint must be specified for e2e tests")
+		}
+
 		var err error
-		f, err = framework.New()
+		f, err = framework.New(*runtimeEndpoint)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = f.SetupProxy()

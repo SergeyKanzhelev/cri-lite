@@ -30,12 +30,7 @@ type Framework struct {
 var errProxyFailedToStart = errors.New("proxy server failed to start")
 
 // New sets up the E2E test framework.
-func New() (*Framework, error) {
-	runtimeEndpoint, err := findRuntimeEndpoint()
-	if err != nil {
-		return nil, fmt.Errorf("failed to find runtime endpoint: %w", err)
-	}
-
+func New(runtimeEndpoint string) (*Framework, error) {
 	return &Framework{
 			RuntimeEndpoint: runtimeEndpoint,
 		},
@@ -167,22 +162,4 @@ func (f *Framework) createSocket() string {
 	return path
 }
 
-var errNoRuntimeEndpointFound = errors.New("no container runtime endpoint found")
 
-// findRuntimeEndpoint attempts to find a container runtime socket.
-func findRuntimeEndpoint() (string, error) {
-	endpoints := []string{
-		"unix:///var/run/dockershim.sock",
-		"unix:///run/containerd/containerd.sock",
-		"unix:///run/crio/crio.sock",
-	}
-
-	for _, endpoint := range endpoints {
-		path := endpoint[len("unix://"):]
-		if _, err := os.Stat(path); err == nil {
-			return endpoint, nil
-		}
-	}
-
-	return "", errNoRuntimeEndpointFound
-}
