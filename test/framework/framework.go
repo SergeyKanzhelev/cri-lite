@@ -161,5 +161,3 @@ func (f *Framework) createSocket() string {
 
 	return path
 }
-
-

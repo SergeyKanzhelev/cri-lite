@@ -44,6 +44,8 @@ jobs:
 
     - name: Run e2e tests
       run: |
+        set -e
+
         BDIR="/var/lib/containerd-critest"
         sudo mkdir -p ${BDIR}/{root,state}
         cat <<EOF | sudo tee ${BDIR}/config.toml
